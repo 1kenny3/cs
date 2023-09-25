@@ -1,0 +1,4989 @@
+var SOCKET_ADDRESS = "//csgopolygon.com/";
+if (window.location.hostname == 'csgopolygon.gg') {
+    SOCKET_ADDRESS = "//csgopolygon.gg";
+}
+if (window.location.hostname == 'plg.bet') {
+    SOCKET_ADDRESS = "//plg.bet";
+}
+if (window.location.hostname == 'plgbet.com') {
+    SOCKET_ADDRESS = "//plgbet.com";
+}
+if (window.location.hostname == 'plgx2.com') {
+    SOCKET_ADDRESS = "//plgx2.com";
+}
+if (window.location.hostname == 'plg2x.com') {
+    SOCKET_ADDRESS = "//plg2x.com";
+}
+if (window.location.hostname == 'plg4x.com') {
+    SOCKET_ADDRESS = "//plg4x.com";
+}
+if (window.location.hostname == 'cs2plg.com') {
+    SOCKET_ADDRESS = "//cs2plg.com";
+}
+if (window.location.hostname == 'plgrubet.com') {
+    SOCKET_ADDRESS = "//plgrubet.com";
+}
+
+var UNAME = "";
+var RANK = 0;
+var n = 0;
+var ROUND = 0;
+var CASEW = 1380;
+var ROOM = LANG_SELECT == 'en' ? 'EN' : 'RU';
+var link_prefix = LANG_SELECT == 'en' ? '' : '/ru/';
+var od;
+var od_m;
+var snapX = 0;
+var IGNORE              = [];
+var R = .999;
+var S = .01;
+var tf = 0;
+var vi = 0;
+var animStart = 0;
+var isMoving = false;
+var LOGR = Math.log(R);
+var SHOWBETS = true;
+var MAX_BET = 5000000;
+var MODE;
+
+var crash_bet = false;
+var crash_amount = 0;
+var crash_next_bet = false;
+var crash_next_amount = 0;
+var crash_next_cashout = 0;
+var crash_pre_point = 1;
+var crash_current_point = 1;
+var crash_start_time = 0;
+var crash_tr = 0;
+var crash_game_status = 0;
+var crash_auto_cashout = 0;
+var crash_connected = 0;
+var c_crashed = 0;
+var connected = 0;
+var bt;
+var game_change_id = 0;
+var finish_roll;
+var crash_bet_placed_tmp;
+var crash_bet_next_tmp;
+var crash_cashout_tmp;
+
+var _bet_count = {
+    'red': [],
+    'black': [],
+    'green': [],
+    'red_1': [],
+    'red_2': [],
+    'red_3': [],
+    'red_4': [],
+    'red_5': [],
+    'red_6': [],
+    'red_7': [],
+    'black_8': [],
+    'black_9': [],
+    'black_10': [],
+    'black_11': [],
+    'black_12': [],
+    'black_13': [],
+    'black_14': []
+}
+var _bet_count_color = {
+    "red": [],
+    "black": [],
+    "green": []
+}
+
+if (window.location.hostname == 'csgopolygon.gg') {
+    SOCKET_ADDRESS = "//csgopolygon.gg";
+}
+var SOCKET = null;
+
+var end_timer = 0;
+var _is_rolling = false;
+
+SOUND_ENABLE = true;
+var sounds_rolling      = new Audio("sounds/rolling.wav");
+var sounds_tone         = new Audio("sounds/tone.wav");
+    sounds_rolling.volume   = .5;
+    sounds_tone.volume      = .5;
+
+    function play_sound(data) {
+        
+        if(!$('.sound').hasClass('off') && SOUND_ENABLE) {
+            
+            if(data == 'roll') sounds_rolling.play();
+            else if(data == 'finish') sounds_tone.play();
+            
+        }
+    
+    }
+
+function send(event, object) {
+
+    if (SOCKET) SOCKET.emit(event, object);
+
+}
+
+String.prototype.format = function() {
+    var a = this;
+    for (var k in arguments) {
+        a = a.replace(new RegExp("\\{" + k + "\\}", 'g'), arguments[k]);
+    }
+    return a
+}
+
+
+function snapRender(t, e) {
+    
+    CASEW = $(".rolling > .roulette").width();
+    var CASEH = $(".rolling > .roulette").height();
+    var case_x = CASEH / 92;
+    var case_w = ((1380 * case_x) / 30);
+
+    if (!isMoving) {
+
+        if (t == undefined) view(snapX);
+        else {
+
+            for (var a = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8], n = 0, i = 0; i < a.length; i++) {
+
+                if (t == a[i]) {
+
+                    n = i;
+
+                    break;
+
+                }
+
+            }
+
+            //var c = case_w * 2 * n + (case_w * 2 * t.wobble); 
+             var c = case_w * 2 * n + (case_w); 
+            c += (6900 * case_x);
+            snapX = c;
+
+            view(snapX);
+
+        }
+
+    }
+
+}
+
+function view(t) {
+    
+    var CASEH = $(".rolling > .roulette").height();
+    var case_x = CASEH / 92;
+    t = -((t + (1380 * case_x) - CASEW / 2) % (1380 * case_x));
+
+    $(".rolling > .roulette").css("background-position", t + "px 0px");
+
+}
+
+function __SOCKET_EVENT_ERROR_APP(data) {
+
+    if (data.enable) $('.betButton').prop('disabled', false);
+    if (data.dice_enable) $('#dice_play').prop('disabled', false);
+
+    chat('error', data.error);
+
+}
+
+
+function __SOCKET_EVENT_ALERT(data) {
+
+    if (data.maxbet) MAX_BET = data.maxbet;
+
+    if (!isNaN(data.balance)) updateBalance(data.balance, false, false, data.cashback);
+
+    chat("alert", data.alert);
+
+}
+
+function __SOCKET_EVENT_BALANCE(data) {
+
+    //console.log("BALANCE", data);
+
+    var tb = Math.floor(Date.now() / 1000);
+    updateBalance(data.balance, tb, true, data.cashback);
+
+    if(data.casino_jackpot !== undefined) {
+
+
+
+        if(MODE == 'live' || MODE == 'live_iframe') {
+
+   
+
+          var new_jackpot_amount = Math.round(data.casino_jackpot).toString();
+          
+          if(new_jackpot_amount.length < 6) {
+
+            var need_0 = (6 - new_jackpot_amount.length);
+            for(var k =0; k < need_0; k++) {
+
+                new_jackpot_amount = "0" + new_jackpot_amount;
+
+            }
+
+          }  
+
+          new_jackpot_amount = new_jackpot_amount + '$';
+          
+          
+
+          var b = String(new_jackpot_amount).split("");
+          if(MODE == 'live') { 
+              for (i=0; i<=new_jackpot_amount.length; i++) {
+                $('.casino_jackpot_live li:nth-of-type('+ i +') span').html(b[(i-1)]);
+              }
+          } else {
+              for (i=0; i<=new_jackpot_amount.length; i++) {
+                $('.casino_jackpot_iframe li:nth-of-type('+ i +') span').html(b[(i-1)]);
+              }
+          }
+
+        }
+
+    }
+
+    if(data.jackpot_win !== undefined && data.jackpot_win != false && data.jackpot_win > 0) {
+
+        $(window).scrollTop(0);
+        $('body').addClass('congratulations');
+        $('body').addClass('congratulations_opened');
+        $('body').addClass('congratulations_jackpot');
+        $('#congratulations_row_casino').show();
+        $('body').append('<canvas id="canvas_fireworks" fireworksColors="golden"></canvas>');
+        onLoad();
+        $('#jackpot_bet_casino').html(data.jackpot_bet);
+        var $this = $('.congratulations_sum h3'),
+            countTo = parseInt(data.jackpot_win);
+        $({ countNum: $this.text() }).animate({
+            countNum: countTo
+        }, {
+            duration: 1000,
+            easing: 'linear',
+            step: function() {
+                $this.text(Math.floor(this.countNum));
+            },
+            complete: function() {
+                $this.text(this.countNum);
+            }
+        });
+
+
+      var win_jackpot_amount = data.jackpot_win.toString();
+      
+      if(win_jackpot_amount.length < 6) {
+
+        var need_0 = (6 - win_jackpot_amount.length);
+        for(var k =0; k < need_0; k++) {
+
+            win_jackpot_amount = "0" + win_jackpot_amount;
+
+        }
+
+      }
+      
+      win_jackpot_amount = win_jackpot_amount + '$';
+
+      var b = String(win_jackpot_amount).split("");
+
+      for (i=0; i<=win_jackpot_amount.length; i++) {
+        $('.win_jackpot li:nth-of-type('+ i +') span').html(b[(i-1)]);
+      }
+
+    }
+
+}
+
+
+function __SOCKET_EVENT_CASINO_JACKPOT(data) {
+
+        if(MODE == 'live' || MODE == 'live_iframe') {
+
+          var new_jackpot_amount = Math.round(data.amount).toString();
+          
+          if(new_jackpot_amount.length < 6) {
+
+            var need_0 = (6 - new_jackpot_amount.length);
+            for(var k =0; k < need_0; k++) {
+
+                new_jackpot_amount = "0" + new_jackpot_amount;
+
+            }
+
+          }  
+
+          new_jackpot_amount = new_jackpot_amount + '$';
+          
+
+          var b = String(new_jackpot_amount).split("");
+          if(MODE == 'live') { 
+              for (i=0; i<=new_jackpot_amount.length; i++) {
+                $('.casino_jackpot_live li:nth-of-type('+ i +') span').html(b[(i-1)]);
+              }
+          } else {
+              for (i=0; i<=new_jackpot_amount.length; i++) {
+                $('.casino_jackpot_iframe li:nth-of-type('+ i +') span').html(b[(i-1)]);
+              }
+          }
+
+        }
+
+}
+
+function __SOCKET_EVENT_REMOVE_MSG(data) {
+    
+    $(document).find('#' + data.unique_id).find('.message_text ').html(LNG.MESSAGE_DELETE + " (" + data.owner + ")")
+        
+}
+
+function __SOCKET_EVENT_ROOM_CHAGE(data) {
+
+    var lastm = data.last_messages;
+    data = data.room;
+
+
+    var room_data = $('#room_list').find($('#' + data.room));
+    var room_online = room_data.attr('online');
+    var total_online = parseInt($('#online').html());
+
+    $(".messages").last().html('');
+    for(m = 0; m < lastm.length; m++) {
+        
+        if(lastm[m].type == 'message') {
+            __SOCKET_EVENT_CHAT(lastm[m]);
+        } else if(lastm[m].type == 'message_win') {
+            chat_win(lastm[m]);
+        }
+
+    }
+
+    $('.active_room').find('span').replaceWith($(`<span class="${data.class} room_select" id="${data.room}" room='${data.room}' label="${data.label}">${data.label}</span>`));
+    $('.room_online').html(room_online + ' / ' + total_online);
+    chat("alert", LNG.CHANGE_ROOM + data.label)
+}
+
+function connect() {
+
+    if (SOCKET) console.log(LNG.ALREADY_CONNECTED);
+    else {
+
+        $(".messages").last().html('');
+        chat('log', LNG.GENERATE_TOKEN);
+
+        $.ajax({
+            'url': "/scripts/getToken?v=" + (new Date()).getTime(),
+            success: function(data) {
+
+                if (data) {
+
+
+                    if (data == 'max') chat('log', LNG.FULL_LOAD);
+                    else if(data == 'nologin') chat('log', LNG.AUTHORIZATION_STEAM);
+                    else {
+
+                        chat('log', LNG.SERVER_CONNECT);
+
+                        SOCKET = io.connect(SOCKET_ADDRESS, {
+                            'query': data + "&language=" + LANG_SELECT,
+                            'reconnection': false
+                        });
+
+                        SOCKET.on('connect', function() {
+
+                            connected = 1;
+                            
+                            //if(getCookie('mode') == 'crash') crash_connect(); 
+                            game_change(MODE, game_change_id, MODE_LINK);
+
+                            $(".messages").last().html('');
+                            if (data == 'nologin') chat('log', LNG.AUTHORIZATION_STEAM);
+                            SOCKET.on('chat', function(data) {
+                               
+                                __SOCKET_EVENT_CHAT(data)
+                            });
+                            SOCKET.on('hello', function(data) {
+                                __SOCKET_EVENT_HELLO(data);
+                            });
+                            SOCKET.on('roll', function(data) {
+                                __SOCKET_EVENT_ROLL(data)
+                            });
+                            
+                            SOCKET.on('roulette_next_round', function(data) {
+                                __SOCKET_EVENT_ROULLETE_NEXT_ROUND(data);
+                            })
+
+                            SOCKET.on('roulette_jackpot', function(data) {
+                                __SOCKET_EVENT_ROULETTE_JACKPOT(data)
+                            });
+                            SOCKET.on('bet', function(data) {
+                                __SOCKET_EVENT_BET(data)
+                            });
+                            SOCKET.on('bet_confirm', function(data) {
+                                __SOCKET_EVENT_BET_CONFIRM(data)
+                            });
+                            SOCKET.on('logins', function(data) {
+                                __SOCKET_EVENT_LOGINS(data)
+                            });
+                            SOCKET.on('error_app', function(data) {
+                                __SOCKET_EVENT_ERROR_APP(data)
+                            });
+                            SOCKET.on('alert', function(data) {
+                                __SOCKET_EVENT_ALERT(data)
+                            });
+                            SOCKET.on('balance', function(data) {
+                                __SOCKET_EVENT_BALANCE(data)
+                            });
+                            SOCKET.on('casino_jackpot', function(data) {
+                                __SOCKET_EVENT_CASINO_JACKPOT(data)
+                            });
+                            SOCKET.on('dice_game', function(data) {
+                                __SOCKET_EVENT_DICE_GAME(data)
+                            });
+                            SOCKET.on('dice_roll', function(data) {
+                                __SOCKET_EVENT_DICE_ROLL(data)
+                            });
+                            SOCKET.on('room_changed', function(data) {
+                                __SOCKET_EVENT_ROOM_CHAGE(data)
+                            });
+                   
+                           SOCKET.on('remove_msg',     function(data) { __SOCKET_EVENT_REMOVE_MSG(data) });
+                           
+                           SOCKET.on('mode_change', function(data) { __SOCKET_EVENT_MODE_CHANGE(data) });
+
+                           SOCKET.on('coinflip_create', function(data) {
+                            __SOCKET_EVENT_COINFLIP_CREATE(data)
+                            });
+                            SOCKET.on('coinflip_join', function(data) {
+                                __SOCKET_EVENT_COINFLIP_JOIN(data)
+                            });
+                            SOCKET.on('coinflip_cancel', function(data) {
+                                __SOCKET_EVENT_COINFLIP_CANCEL(data)
+                            });
+                            
+                            SOCKET.on('message_win', function (data) {
+                                chat_win(data);
+                            })
+                              
+
+                            SOCKET.on('crash_bet', function(data) { __SOCKET_EVENT_CRASH_BET(data) });
+                            SOCKET.on('crash_cashout', function(data) { __SOCKET_EVENT_CRASH_CASHOUT(data) });
+                            SOCKET.on('crash_timer', function(data) {
+                               __SOCKET_EVENT_CRASH_TIMER(data);
+                           });
+                           SOCKET.on('crash_slider', function(data) {
+                               __SOCKET_EVENT_CRASH_SLIDER(data);
+                           });
+                           SOCKET.on('crash_new', function(data) {
+                               __SOCKET_EVENT_CRASH_NEW(data)
+                           });
+                           SOCKET.on('crash_end', function(data) {
+                               __SOCKET_EVENT_CRASH_END(data)
+                           });
+                 
+
+                        });
+
+                        SOCKET.on('connect_error', function() {
+
+                            connected = 0;
+                            chat('error', LNG.ERROR_CONNECTION_CLOSED);
+
+                        });
+
+                        SOCKET.on('connect_timeout', function() {
+
+                            connected = 0;
+                            chat('error', LNG.ERROR_CONNECTION_CLOSED);
+
+                        });
+
+                        SOCKET.on('disconnect', function(error) {
+
+                            connected = 0;
+                            // SOCKET = false;
+                            // connect();
+                            chat('error', LNG.CONNECTION_ABORT + ' (' + error + ')');
+
+                        });
+
+                    }
+
+                } else chat('log', LNG.ERROR_NO_TOKEN);
+
+
+            },
+            error: function() {
+
+                chat('log', LNG.ERROR_NO_TOKEN);
+
+
+            }
+        });
+
+    }
+
+}
+
+jQuery.fn.extend({
+    countTo: function(t, e) {
+        e = e || {};
+        var a = "",
+            n = $("#settings_dongers").is(":checked");
+        var i = $(this),
+            s = parseFloat(i.html()),
+            o = t - s;
+        e.color && (o > 0 ? i.addClass("text-success") : 0 > o && i.addClass("text-danger"));
+        var l = "";
+        e.keep && o > 0 && (l = "+");
+        var c = o;
+        n && (c *= 1e3);
+        var r = Math.min(400, Math.round(Math.abs(c) / 500 * 400));
+        $({
+            count: s
+        }).animate({
+            count: t
+        }, {
+            duration: r,
+            step: function(t) {
+                var e = 0;
+                e = n ? t.toFixed(3) : Math.floor(t), i.html("" + l + e)
+            },
+            complete: function() {
+                e.keep || i.removeClass("text-success text-danger"), e.callback && e.callback()
+            }
+        })
+    },
+    countTo1: function(t, e) {
+        e = e || {};
+        var a = "",
+            n = false;
+        var i = $(this),
+            s = parseFloat(i.html()),
+            o = t - s;
+        e.color && (o > 0 ? i.addClass("text-success") : 0 > o && i.addClass("text-danger"));
+        var l = "";
+        e.keep && o > 0 && (l = "+");
+        var c = o;
+        n && (c *= 1e3);
+        var r = Math.min(400, Math.round(Math.abs(c) / 500 * 400));
+        $({
+            count: s
+        }).animate({
+            count: t
+        }, {
+            duration: r,
+            step: function(t) {
+                var e = 0;
+                e = n ? t.toFixed(3) : Math.floor(t), i.html("" + l + e)
+            },
+            complete: function() {
+                e.keep || i.removeClass("text-success text-danger"), e.callback && e.callback()
+            }
+        })
+    }
+}), $(document).ready(function() {
+
+    crash_bet_placed_tmp = `<div>${LNG.CRASH_BET_PLACED} ({0})</div><div class="crash_cashout_info">AUTO-CASHOUT: {1}</div>`;
+    crash_bet_next_tmp = `<div>${LNG.CRASH_BETTING} ({0})</div><div class="crash_cashout_cancel">${LNG.CRASH_CANCEL}</div><div class="crash_cashout_info">AUTO-CASHOUT: {1}</div>`;
+    crash_cashout_tmp = `<div>${LNG.CRASH_CASHOUT} ({0})</div><div class="crash_cashout_info">AUTO-CASHOUT: {1}</div>`;
+
+    console.log('%cDear CSGOPolygon Users.', 'color: #eb5348; font-size: 28px'); 
+    console.log('%cOn any circumstances do not use any scripts that have been provided to you from someone! We are not responsible for lost coins in such situations. Also do not share with anyone ANY information related to your sessions! Simply do not give anything that someone asked you for. Doing any of the following will most likely result in lost of your coins!', 'color: #4d4d4f; font-size: 18px'); 
+    console.log('%cДорогие игроки CSGOPolygon.', 'color: #eb5348; font-size: 28px'); 
+    console.log('%cНи при каких обстоятельствах не используйте скрипты, предоставленные Вам кем-либо! Мы не несем ответственности за утерянные монеты в таких ситуациях. Также не сообщайте никому ЛЮБОЙ информации, связанной с Вашими сессиями! Просто не давайте ничего, о чем Вас попросили. Выполнение любых из перечисленных действий, скорее всего, приведет к потере Ваших монет!', 'color: #4d4d4f; font-size: 18px'); 
+    $(window).on("blur focus", function(e) {
+        if(_is_rolling === false) {
+
+            console.log('end_timer', end_timer)
+
+            var t = end_timer - Math.floor(new Date() / 1000);
+            var p =  t / 25 * 100;
+            $(".bar").finish().css("width", p + "%");
+            
+            $(".bar").animate({
+                'width': '0%'
+            }, {
+                'duration': t * 1000,
+                'easing': 'linear',
+                'progress': function(t, e, a) {
+                    $(".progress_timer").html(LNG.ROLL_TIME.replace('%time%', (a / 1000).toFixed(2)));
+                }
+            });
+
+        }
+    })
+
+
+    $("#message_text").keyup(function(e){
+    
+        if(e.keyCode == 13) send_message();
+    });
+
+    connect();
+    if(getCookie("mode") != '') {
+        var f = false;
+        if(getCookie("mode") == 'betting_sport') f = true;
+      //  changeMode(getCookie("mode"), f);
+    }
+    //changeMode('betting');
+});
+
+
+function __SOCKET_EVENT_CHAT(data) {
+   
+    chat('player', data.msg, data.time, data.prefix, data.rank, data.icon, data.name, data.steamid, data.user, data.hide, data.prefix_color, data.name_color, data.link, data.unique_id, data.reply, data.reply_uid, data.img_class, data.gift_class);
+
+}
+
+function spin(t) {
+
+    CASEW = $(".rolling > .roulette").width();
+    var e = t.roll;
+    var CASEH = $(".rolling > .roulette").height();
+    var case_x = CASEH / 92;
+    var case_w = ((1380 * case_x) / 30);
+
+    for (var a = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8], n = 0, i = 0; i < a.length; i++) {
+
+        if (e == a[i]) {
+
+            n = i;
+            break;
+
+        }
+
+    }
+
+    //var c = case_w * 2 * n + (case_w * 2 * t.wobble); 
+    var c = case_w * 2 * n + (case_w); 
+
+    c += (6900 * case_x);
+
+    animStart = (new Date).getTime() - t.sync;
+
+    vi = getVi(c);
+    tf = getTf(vi);
+
+    isMoving = true;
+
+    finish_roll = setTimeout(function() {
+
+        finishRoll(t, tf);
+
+    }, tf - t.sync);
+
+    render();
+
+}
+
+function __SOCKET_EVENT_ROULLETE_NEXT_ROUND(data) {
+    
+    _bet_count = {
+        'red': [],
+        'black': [],
+        'green': [],
+        'red_1': [],
+        'red_2': [],
+        'red_3': [],
+        'red_4': [],
+        'red_5': [],
+        'red_6': [],
+        'red_7': [],
+        'black_8': [],
+        'black_9': [],
+        'black_10': [],
+        'black_11': [],
+        'black_12': [],
+        'black_13': [],
+        'black_14': []
+    };
+    _bet_count_color = {
+        'red': [],
+        'black': [],
+        'green': []
+    };
+    
+    cd(data.timer, data.timer);
+    
+    $(".total,.mytotal,.totalCount").removeClass("text-success text-danger").html(0), $(".round_players li").remove(), snapRender(), $(".betButton").prop("disabled", !1), SHOWBETS = !0;
+    $(".total").removeClass('jackpot_count');
+    $(".mytotal").removeClass('jackpot_count');
+
+}
+
+function finishRoll(t, e) {
+
+    //console.log("finishRoll", t, e)
+
+    var mytotalbet = 0;
+    $('.mytotal').each(function() {
+        mytotalbet = mytotalbet + parseInt($(this).html());
+    })
+
+    if(getCookie("settings_dongers") == 'true') {
+        t.won = parseFloat((t.won / 1000).toFixed(4));
+    }
+    $(".progress_timer").html(LNG.ROLL_NUMBER + t.roll + "!"), addHist(t.roll, t.rollid);
+    play_sound("finish");
+    for (var a = 0; a < 3; a++) {
+        if(getCookie("settings_dongers") == 'true') {
+            t.nets[a].amount = parseFloat((t.nets[a].amount / 1000).toFixed(2));
+            t.nets[a].jackpot = parseFloat((t.nets[a].jackpot / 1000).toFixed(2));
+            t.nets[a].swon = parseFloat((t.nets[a].swon / 1000).toFixed(2));
+        }
+
+        var color = 'green'
+        if(t.nets[a].lower == 1) color = 'red';
+        if(t.nets[a].lower == 8) color = 'black';
+
+        
+
+        if (t.jackpot) $("#" + color + "_bets").find(".total").addClass('jackpot_count');
+        var p = parseFloat(t.nets[a].swon) + parseFloat(t.nets[a].jackpot);
+        $("#" + color + "_bets").find(".total").countTo(p > 0 ? p : -t.nets[a].amount, {
+            color: !0,
+            keep: !0
+        });
+
+    }
+
+    var win_color = 'green';
+    if(t.roll >= 1 && t.roll <= 7) win_color = 'red';
+    if(t.roll >= 8 && t.roll <= 14) win_color = 'black';
+    $('.list_bet').not('[bet="'+win_color+'"]').not('[bet="'+win_color+t.roll+'"]').addClass('bet_lose');
+
+    for (var n = [
+            [0, 0],
+            [1, 7],
+            [8, 14]
+        ], a = 0; a < n.length; a++) {
+
+        var color = 'green'
+        if(n[a][0] == 1) color = 'red';
+        if(n[a][0] == 8) color = 'black';
+
+        var i = $("#" + color + "_bets_my").find(".mytotal");
+        if (t.jackpot) i.addClass('jackpot_count');
+        if (t.roll >= n[a][0] && t.roll <= n[a][1])
+            i.countTo(t.won, {
+                color: !0,
+                keep: !0
+            });
+        else {
+            var s = parseFloat(i.html());
+            i.countTo(-s, {
+                color: !0,
+                keep: !0
+            })
+        }
+    }
+    null != t.balance && updateBalance(t.balance, t.btime, false, t.cashback);
+    
+    if(t.jackpot && t.jackpot_win == true && t.won > 0) {
+
+        $(window).scrollTop(0);
+        $('body').addClass('congratulations');
+        $('body').addClass('congratulations_opened');
+        $('#congratulations_row_roulette').show();
+        $('body').append('<canvas id="canvas_fireworks" fireworksColors="default"></canvas>');
+        onLoad();
+        $('#jackpot_bet').html(mytotalbet);
+        var $this = $('.congratulations_sum h3'),
+            countTo = parseInt(t.won);
+        $({ countNum: $this.text() }).animate({
+            countNum: countTo
+        }, {
+            duration: 1000,
+            easing: 'linear',
+            step: function() {
+                $this.text(Math.floor(this.countNum));
+            },
+            complete: function() {
+                $this.text(this.countNum);
+            }
+        });
+
+    }
+ 
+}
+
+$(document).on('click', '.congratulations', function() {
+    alerts.confirm(LNG['JACKPOT_CASINO_CLOSE'], function(r) {
+        
+        if(r) {
+            animation_stop = true;
+            $('#canvas_fireworks').remove();
+            $('#congratulations_row_roulette').hide();
+            $('#congratulations_row_casino').hide();
+            $('body').removeClass('congratulations');
+            $('body').removeClass('congratulations_opened');
+            $('body').removeClass('congratulations_jackpot');
+        }
+        
+    }, 'warn', '', true, {
+        confirm: 'YES, CLOSE',
+        cancel: 'NO'
+    });
+
+
+});
+
+function fullScreen(element) {
+    if (element.requestFullscreen) {
+        element.requestFullscreen();
+    } else if (element.mozRequestFullScreen) {
+        element.mozRequestFullScreen();
+    } else if (element.webkitRequestFullScreen) {
+        element.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+    }
+}
+
+$(document).on('click', '.game_action_orientation', function() {
+    
+    if(mobileCheck()) {
+        
+        
+        var win = window.open('/scripts/casino/init_game_tab?id='+casino_game_id+'&balance_type=' + balance_type, '_blank');
+        win.focus(); 
+        game_change_id = Math.floor(Math.random() * 1000);
+        game_change('slots', game_change_id, '/slots')
+        
+    } else {
+        
+        fullScreen($('#game_iframe')[0]);
+        
+    }
+    
+})
+
+
+function d_mod(t, e) {
+
+    return t * (Math.pow(R, e) - 1) / LOGR;
+
+}
+
+function getTf(t) {
+
+    return (Math.log(S) - Math.log(t)) / LOGR;
+
+}
+
+function getVi(t) {
+
+    return S - t * LOGR;
+
+}
+
+function v(t, e) {
+
+    return t * Math.pow(R, e);
+
+}
+
+function render() {
+    
+    var t = (new Date).getTime() - animStart;
+
+    if (t > tf) t = tf;
+
+    var e = d_mod(vi, t);
+
+    view(e);
+
+    if (tf > t) requestAnimationFrame(render);
+    else {
+
+        snapX = e;
+        isMoving = false;
+
+    }
+
+}
+
+
+
+
+
+function cd(t, total) {
+    
+
+    
+    var bar = (t / total * 100);
+
+    $(".bar").finish().css("width", bar + "%");
+    _is_rolling = false;
+    end_timer = Math.floor(new Date() / 1000) + parseFloat(t);
+    $(".bar").animate({
+        'width': '0%'
+    }, {
+        'duration': t * 1000,
+        'easing': 'linear',
+        'progress': function(t, e, a) {
+            $(".progress_timer").html(LNG.ROLL_TIME.replace('%time%', (a / 1000).toFixed(2)));
+        }
+    });
+}
+
+
+
+var bet_tmp = '<li class="list_bet" id="{0}" data-amount="{1}" bet="{11}" >';
+bet_tmp += '<a class="userpic {12}"  href="{4}" target="_blank" style="position: relative;">';
+bet_tmp += '<span class="{15}">';
+bet_tmp += '<img src="{2}" class="contextmenu" uid="{5}" steamid="{6}" name="{3}" alt="{3}" style="z-index: 2;">';
+bet_tmp += '<span><i {7}>{8}</i></span>';
+bet_tmp += '</span>';
+bet_tmp += '</a>';
+bet_tmp += '<div class="round_players_details">';
+bet_tmp += '{13}';
+bet_tmp += '<strong style="{14}">{1}</strong>';
+bet_tmp += '<div class="round_players_details_row">';
+bet_tmp += '<span class="{10}">{9}</span>';
+bet_tmp += '</div>';
+bet_tmp += '</div>';
+bet_tmp += '</li>';
+
+var plg_bet_logo = '<div class="plg_bet"></div>';
+
+function addBet(t, an) {
+
+    //console.log('ADDBEt', t, e)
+    var bet_type = t.bet_type;
+    var color = 'green';
+    var color_class = 'green';
+    var number = '';
+    var number_class = 'round_players_details_empty'
+    var bet_data = 'green';
+    if(t.lower == 1 && t.upper == 7) {
+        color = 'red';
+        color_class = 'red';
+        bet_data = 'red';
+    } else if(t.lower == 8 && t.upper == 14) {
+        color = 'black';
+        color_class = 'black';
+        bet_data = 'black';
+    } else if(t.lower == t.upper && t.lower != 0) {
+        if(t.lower >= 1 && t.lower <= 7) {
+            color = 'red_' + t.lower;
+            color_class = 'red';
+            bet_data = 'red' + t.lower;
+        } 
+        if(t.lower >= 8 && t.lower <= 14) {
+            color = 'black_' + t.lower;
+            color_class = 'black';
+            bet_data = 'black' + t.lower;
+        }
+        number = t.lower;
+        number_class = '';
+
+    }
+
+    if(_bet_count[color].indexOf(t.user) == -1) _bet_count[color].push(t.user);
+    if(_bet_count_color[color_class].indexOf(t.user) == -1) _bet_count_color[color_class].push(t.user);
+
+
+    var a = t.user + "-" + color + '-' + bet_type;
+    var n = "#" + color_class + "_bets";
+    var i = $(n);
+    i.find("#" + a).remove();
+    
+    if(t.icon.includes('http')) {
+        var avatar = t.icon;
+    } else {
+        var avatar = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + t.icon;
+    }
+    var link = '#';
+    if (t.steamid) {
+        link = 'https://steamcommunity.com/profiles/' + t.steamid;
+    }
+
+    if(getCookie("settings_dongers") == 'true') {
+        t.amount = parseFloat((t.amount / 1000).toFixed(4));
+    }
+    
+    t.name = t.name.substr(0, 20);
+    var name = t.name;
+
+
+    if (t.prefix != undefined && t.prefix != '') {
+        var p_color = '';
+        if(t.prefix_color != '') p_color = 'style="color: ' + t.prefix_color + ';margin-right:3px"';
+        t.name = prefix_tmp.format(t.prefix, p_color) + ' ' + t.name;
+    }
+
+    if(getCookie("settings_hideusers") == 'true') {
+
+        t.name = name.substring(0,2) + '*'
+        avatar = '/images/chat/server.png';
+
+    }
+
+    var n_color = 'style="display:flex;"';
+    if(t.name_color != undefined && t.name_color != '') n_color = 'style="color: ' + t.name_color + '"';
+    if(t.link != undefined && t.link != '') link = t.link;
+
+    var i_c = '';
+    if(t.img_class != '') {
+        i_c = t.img_class;
+    }
+    
+    var g_c = '';
+    if(t.gift_class != undefined && t.gift_class != '') {
+        g_c = t.gift_class
+    }
+    
+    var bet_logo = '';
+    var amount_style = '';
+    if(bet_type == 2) {
+        bet_logo = plg_bet_logo;
+        amount_style = 'color:#E164AF;';
+    }
+
+    var o = $(bet_tmp.format(a, t.amount, avatar, name, link, t.user, t.steamid, n_color, t.name, number, number_class, bet_data, i_c, bet_logo, amount_style, g_c));
+
+    var last_amount = parseInt((i.find(".betlist").children().last().attr('data-amount') ? i.find(".betlist").children().last().attr('data-amount') : 0));
+
+
+    if(last_amount < t.amount || i.find(".betlist").children().length <= 15) {
+
+        if(an === true) o.hide().prependTo(i.find(".betlist")).slideDown("fast")
+        else o.prependTo(i.find(".betlist"));
+
+    }
+
+    i.find('.totalCount').countTo1(_bet_count_color[color_class].length);
+
+    if(an === true) {
+        try { tinysort($(n).find('.betlist > li'),     {'data': 'amount', 'order': 'desc'}); } catch (ee) { }
+    }
+
+    if(i.find(".betlist").children().length > 15) {
+        i.find(".list_bet").last().remove();
+    }
+    
+}
+
+function addHist(t, e) {
+
+    if ($(".balls > .ball").length > 9) $(".balls > .ball").first().remove();
+
+    if (t == 0) $(".balls").append("<li class='ball' data-rollid='" + e + "'><span class='green'>" + t + "</span></li>");
+    else if (t < 8) $(".balls").append("<li class='ball' data-rollid='" + e + "'><span class='red'>" + t + "</span></li>");
+    else $(".balls").append("<li class='ball' data-rollid='" + e + "'><span class='dark'>" + t + "</span></li>");
+}
+
+function __SOCKET_EVENT_BET(data) {
+
+    if (SHOWBETS) {
+
+        addBet(data.bet, true);
+
+        if(getCookie("settings_dongers") == 'true') {
+            data.sums[0] = parseFloat((data.sums[0] / 1000).toFixed(2));
+            data.sums[1] = parseFloat((data.sums[1] / 1000).toFixed(2));
+            data.sums[2] = parseFloat((data.sums[2] / 1000).toFixed(2));
+        }
+
+        
+
+        $('#green_bets      .total').countTo(data.sums[0]);
+        $('#red_bets      .total').countTo(data.sums[1]);
+        $('#black_bets     .total').countTo(data.sums[2]);
+
+    }
+
+}
+
+function __SOCKET_EVENT_BET_CONFIRM(data) {
+
+    if(getCookie("settings_dongers") == 'true') {
+        data.bet.amount = parseFloat((data.bet.amount / 1000).toFixed(4));
+    }
+
+    var color = 'green';
+    if(data.bet.lower == 1 && data.bet.upper == 7) color = 'red';
+    if(data.bet.lower == 8 && data.bet.upper == 14) color = 'black';
+    if(data.bet.lower == data.bet.upper && data.bet.lower != 0) {
+        if(data.bet.lower >= 1 && data.bet.lower <= 7) color = 'red';
+        if(data.bet.lower >= 8 && data.bet.lower <= 14) color = 'black';
+    }
+
+    $('#' + color + '_bets_my .mytotal').countTo(data.bet.amount);
+
+    //updateBalance(data.balance, true);
+
+    $('.betButton').prop('disabled', false);
+
+    chat('alert', LNG.BET + data.bet.betid + LNG.CONFIRMED + data.mybr + "/" + data.br + " (" + data.exec + " " + LNG.SEC + ") ");
+
+}
+
+function __SOCKET_EVENT_ROLL(data) {
+    
+    console.log('ROLL', data);
+
+    $('.betButton').prop('disabled', true);
+    $(".bar").finish().css("width", 0 + "%");
+    $(".progress_timer").html(LNG.ROLL);
+
+    ROUND = data.rollid;
+    SHOWBETS = false;
+    _is_rolling = true;
+    spin(data);
+
+    try { tinysort('#green_bets     .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+    try { tinysort('#red_bets   .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+    try { tinysort('#black_bets     .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+}
+
+function __SOCKET_EVENT_ROULETTE_JACKPOT(data) {
+
+    //console.log('J AMOUNT', data);
+    setTimeout(function() {
+        updateJackpot(data.amount);
+    }, 6000)
+
+
+}
+
+function __SOCKET_EVENT_LOGINS(data) {
+    
+
+    $("#online").html(data.count);
+    for( var key in data.rooms) {
+        var label = $('#room_list').find('#' + key).attr('label');
+        $('#room_list').find('#' + key).attr('online', data.rooms[key]);
+        $('#room_list').find('#' + key).html(label + ' ' + '(' + data.rooms[key] + ')');
+        if(key == ROOM) $('.room_online').html(data.rooms[key] + ' / ' + data.count);
+    }
+
+
+}
+
+function __SOCKET_EVENT_HELLO(data) {
+    
+    
+    USER = data.user;
+    RANK = data.rank;
+    UNAME = data.name;
+    MAX_BET = data.max_bet;
+    var tb = Math.floor(Date.now() / 1000);
+    updateBalance(data.balance, tb, true, data.cashback);
+     
+    for(m = 0; m < data.last_messages.length; m++) {
+
+        if(data.last_messages[m].type == 'message') {
+            __SOCKET_EVENT_CHAT(data.last_messages[m]);
+        } else if(data.last_messages[m].type == 'message_win') {
+            
+            chat_win(data.last_messages[m]);
+            
+        }
+
+    }
+    
+    chat('alert', LNG.CHAT_HELLO.replace('%min_bet%', formatNum(data.min_bet)).replace('%min_bet_declination%', coins_declination(data.min_bet)).replace('%max_bet%', formatNum(data.max_bet)).replace('%max_bet_declination%', coins_declination(data.max_bet)).replace('%bets_per_roll%', data.bets_per_roll).replace('%bets_per_roll_declination%', games_declination(data.bets_per_roll)).replace('%roll_cooldown%', data.roll_cooldown).replace('%chat_cooldown%', data.chat_cooldown).replace('%chat_balance%', formatNum(data.chat_balance)).replace('%chat_balance_ru%', formatNum(data.chat_balance_ru)).replace('%chat_balance_en%', formatNum(data.chat_balance_en)).replace('%min_bet_matches%', formatNum(data.min_bet_matches)).replace('%min_bet_matches_declination%', coins_declination(data.min_bet_matches)).replace('%max_bet_matches%', formatNum(data.max_bet_matches)).replace('%max_bet_matches_declination%', coins_declination(data.max_bet_matches)));
+
+}
+
+function __SOCKET_EVENT_WIN_ALERT(data) {
+    
+    chat('alert', data[LANG_SELECT], data.time);
+    
+}
+
+
+
+var message_template = '<div class="message" id={11}>';
+message_template += '<div class="userpic contextmenu context-msg {12}" uid="{8}" steamid="{9}" name=\'{10}\' unique_id="{11}">';
+message_template += '<a class="userpic {13}" href="#"><img src="{0}" alt="Image not found" onerror="this.onerror=null;this.src=\'/images/chat/server.png\';"></a>';
+message_template += '</div>';
+message_template += '<div class="message_body">';
+message_template += '<a href="{1}" target="_blank" class="{3}" {6}>{2}</a>';
+message_template += '<span>{4}</span>';
+message_template += '<p class="message_text {3}">{5}</p>';
+message_template += '</div>';
+message_template += '</div>';
+
+var prefix_tmp = '<span {1}>[{0}]</span>';
+
+function send_message() {
+    var t = $("#message_text").val();
+   
+    if (t) {
+        var e = null;
+        if (e = /^\/send ([0-9]*) ([0-9]*)/.exec(t)) {
+            var a = "";
+            var text = LNG.COINS_STEAMID;
+            var coins = e[2];
+            if(balance_type == 2) {
+                text = LNG.PLG_STEAMID;
+                coins = '<i style="color: #E164AF;">' + e[2] + '</i>';
+            }
+            alerts.confirm(LNG.ABOUT_SEND + coins + text + e[1] + LNG.YOU_SURE + '<br><br><div id="captcha"></div>', function(e) {
+                e && (send('chat', {
+                    msg: t,
+                    balance_type: balance_type
+                }), $("#message_text").val(""))
+            }, 'warn', '', true);
+        } else {
+            var i = $("#settings_hideme").is(":checked");
+            send('chat', {
+                msg: t,
+                hide: i
+            }), $("#message_text").val("")
+        }
+    }
+    return !1
+}
+
+$(document).on('click', '#message_send', function() {
+    send_message();
+});
+
+    function emotes(t) {
+
+        var e = ["nocoins", "heart", "hello", "goodbye", "broke", "headexplode", "laugh", "rainbow", "ok", "facepalm", "vip", "take", "great", "cry", "sad", "believe", "heart2", "ban", "deposit", "withdraw", "gameover", "foolish", "gambler", "angry", "comeback", "goodluck", "thanks", "gg", "win", "double", "money", "allin", "322", "winsoon", "jackpot", "jackpot2", "techworks", "wwwww", "llllll", "letsroll", "1x", "goal", "gored", "goblack", "gogreen", "redtrain", "blacktrain", "22_22", "2222", "think", "rayan", "missextro", "Kappa", "KappaRoss", "Kreygasm", "PogChamp", "heart1", "priem", "contract", "need0", "overslept", "waiting", "read", "777"];
+
+        for (var a = 0; a < e.length; a++)
+            {   
+                
+                var regex = new RegExp("(:)(en#|ru#)?("+e[a]+")(:)", "g");
+                var regex_exec = regex.exec(t);
+                if(regex_exec !== null) {
+                    
+                    var link = '';
+                    var style = '';
+                    if(regex_exec[2] !== undefined) link += '/' + regex_exec[2].replace('#', '');
+                    link += '/' + regex_exec[3] + '.PNG';
+                    if(e[a] == "Kappa" || e[a] == "KappaRoss" || e[a] == "Kreygasm" || e[a] == "PogChamp" || e[a] == "heart1") style = "style='width: 35px; height: 35px'";
+                    
+                    t = t.replace(regex, "<img "+style+" src='/img/stickers_new" + link + "'>");
+                    
+                    
+                }
+                
+            }
+        
+        return t;
+        
+    }
+    
+var message_win_template = '<div class="message">';
+    message_win_template += '<div class="message-win">';
+    message_win_template += '<div class="message-win-userpic">'
+    message_win_template += '<img src="{4}" alt="User" />'
+    message_win_template += '</div>';
+    message_win_template += '<div class="message-win-info">';
+    message_win_template += '<span class="message-win-title">';
+    message_win_template += '<a href="#">{2}</a> win x{3}';
+    message_win_template += '</span><span class="message-win-prize">${1}</span></div>';
+    message_win_template += '<a href="#" class="message-win-button">{0}</a>';
+    message_win_template += '</div>';
+    message_win_template += '</div>';
+    
+    // 0 - game name
+    // 1 - win sum
+    // 2 - user name
+    // 3 - x
+    // 4 - user avatar
+    
+function chat_win(data) {
+    
+    if(data.i == 31218 || data.i == 9097246) return;
+    
+    if(data.avatar.includes('http')) {
+        var avatar = data.avatar
+    } else {
+        var avatar = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + data.avatar
+    }
+    
+    var game = data.game;
+    if(game.length > 15) {
+        game = game.substr(0, 13) + '..';
+    }
+    var username = data.name;
+    
+    
+    var msg = message_win_template.format(game, data.sum, username, data.x, avatar);
+    $('.messages').last().append(msg);
+    
+    if($('.chat_pause_controller').hasClass('now_play')) {
+        
+        var h = $('.messages').last().children().length;
+        if (h > 75) {
+            var m = h - 75;
+            $('.messages').last().children().slice(0, m).remove();
+        }
+        $('.messages').last().scrollTop($('.messages').last()[0].scrollHeight)
+        
+    }
+    
+    
+    
+}
+
+function chat(type, message, t, prefix, rank, av, n, steamid, uid, hide, prefix_color, name_color, link_custom, uniq_id, reply, reply_uid, img_class, gift_class) {
+    
+    var hide_msg = false;
+    var color_style = '';
+    var avatar = '';
+    var name = '';
+    var link = '#';
+    var text = emotes(message);
+    var time = '';
+    var unique_id = '';
+    if(uniq_id) unique_id = uniq_id;
+    if (t) time = t;
+    if ('error' == type) {
+        color_style = 'text-error';
+        avatar = '/images/chat/server.png';
+        name = 'Server';
+    } else if ('alert' == type) {
+        color_style = 'text-success';
+        avatar = '/images/chat/server.png';
+        name = 'Alert';
+    } else if ('log' == type) {
+        color_style = '';
+        avatar = '/images/chat/server.png';
+        name = 'Info';
+    } else {
+        if(av.includes('http')) {
+             avatar = av
+        } else {
+             avatar = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + av
+        }
+        name = n;
+        if($("#settings_msg").is(":checked") === true) hide_msg = true;
+
+        if(getCookie("settings_hideusers") == 'true') {
+
+            name = name.substring(0,2) + '*'
+            avatar = '/images/chat/server.png';
+
+        }
+
+    }
+
+
+
+    if (prefix) {
+        var p_color = '';
+        var p = ''
+        if(prefix_color != '') p_color = 'style="color: ' + prefix_color + '"';
+        name = prefix_tmp.format(prefix, p_color) + ' ' + name;
+    }
+
+    var n_color = '';
+    if(name_color != '') n_color = 'style="color: ' + name_color + '"';
+
+    if(steamid) link = 'https://steamcommunity.com/profiles/' + steamid;
+    if(link_custom != '') link = link_custom;
+    
+    var reply_text = '';
+    if(reply) reply_text = reply;
+    if(reply_uid == USER) reply_text = '<a>' + reply_text + '</a>,';
+    else if(reply) reply_text = reply_text + ',';
+    
+    text = reply_text + ' ' + text;
+
+    var i_c = ''
+    if(img_class) {
+        i_c = img_class;
+    }
+
+    var g_c = ''
+    if(gift_class) {
+        g_c = gift_class;
+    }
+    
+    var msg = message_template.format(avatar, link, name, color_style, time, text, n_color, n, uid, steamid, n, unique_id, i_c, g_c);
+    
+    if(IGNORE.indexOf(String(uid)) == -1 && hide_msg == false) {
+    
+        $('.messages').last().append(msg);
+        if($('.chat_pause_controller').hasClass('now_play')) {
+            var h = $('.messages').last().children().length;
+            if (h > 75) {
+                var m = h - 75;
+                $('.messages').last().children().slice(0, m).remove();
+            }
+        
+        $('.messages').last().scrollTop($('.messages').last()[0].scrollHeight)
+        }
+    
+    }
+
+
+}
+
+function coins_declination(data) {
+
+    if (data % 10 == 1) return LNG.DECLINATION_A;
+    else if (data % 10 > 1 && data % 10 < 5) return LNG.DECLINATION_S;
+    else return LNG.DECLINATION_ALL;
+
+}
+
+function games_declination(data) {
+
+    if (data % 10 == 1) return LNG.DECLINATION_A_G;
+    else if (data % 10 > 1 && data % 10 < 5) return LNG.DECLINATION_S_G;
+    else return LNG.DECLINATION_ALL_G;
+
+}
+
+
+
+
+$(document).on("click", ".button_amount_r", function() {
+    var t = parseInt($('#roulette_amount').val()) || 0;
+    var a = $(this).attr("action");
+    if ("clear" == a)
+        t = 0;
+    else if ("double" == a)
+        t *= 2;
+    else if ("half" == a)
+        t /= 2;
+    else if ("max" == a) {
+        var e = MAX_BET;
+        if(balance_type == 1) {
+            t = Math.min(parseInt($("#balance_r").html()), e);
+        } else {
+            t = Math.min(parseInt($("#balance_c").html()), e);
+        }
+    } else
+        "last" == a ? t = 0 : t += parseInt(a);
+    $("#roulette_amount").val(parseInt(t) || 0)
+});
+$(document).on("click", ".button_amount_c", function() {
+    var t = parseInt($('#crash_amount').val()) || 0;
+    var a = $(this).attr("action");
+    if ("clear" == a)
+        t = 0;
+    else if ("double" == a)
+        t *= 2;
+    else if ("half" == a)
+        t /= 2;
+    else if ("max" == a) {
+        var e = 1000000;
+        if(balance_type == 1) {
+            t = Math.min(parseInt($("#balance_p").html()), e);
+        } else {
+            t = Math.min(parseInt($("#balance_c").html()), e);
+        }
+    } else if ("min" == a) {
+        t = 10;
+    } else
+        "last" == a ? t = 0 : t += parseInt(a);
+    $("#crash_amount").val(parseInt(t) || 0)
+});
+
+
+function _roulette_bet(amount, lower, upper, round, hide, callback) {
+    
+    var url = '/scripts/roulette/b_numbers';
+    if(balance_type == 2) url = '/scripts/roulette/b_cashback';
+    
+    if(connected == 1) {
+        $.ajax({
+            url : url,
+            type : 'post',
+            data : {
+                amount: amount,
+                lower: lower,
+                upper: upper, 
+                round: round,
+                balance_type: balance_type
+            },
+            success : data => {
+                try {
+                    data = JSON.parse(data);
+                    if(data.success) {
+
+                        
+                        callback();
+                        __SOCKET_EVENT_BET_CONFIRM(data.data);
+                
+        
+                    } else {
+                        chat('error', data.error);
+                        callback();
+                        $('.betButton').prop('disabled', false);
+                    }
+
+                    
+
+                } catch(err) {
+
+                    if(data.includes('get_jhash')) {
+
+                        alerts.notify(LNG.ERROR_RELOAD, 'Error', 'error', true, function() {
+                                
+                            window.location.reload();
+                            
+                        });
+
+                    } else {
+
+                        alerts.notify(err.message, 'Error', 'error', true);
+
+                    }
+
+                    $('.betButton').prop('disabled', false);
+                    callback();
+                   
+                }
+            },
+            error : err => {
+             
+                alerts.notify(err.responseText, 'Error', 'error', true);
+                callback();
+                $('.betButton').prop('disabled', false);
+
+                
+
+            }
+        });
+
+    }
+}
+
+$(document).on("click", ".betButton", function() {
+    var _button = $(this);
+    var text = _button.text();
+    _button.text('...');
+    var t = $(this).data("lower"),
+        e = $(this).data("upper");
+        
+    if($("#settings_dongers").is(":checked")) {
+        var a = parseFloat($("#roulette_amount").val());
+        a = 1000 * a; 
+        a = Math.floor(a);
+    } else {
+        var a = parseInt($("#roulette_amount").val());
+    }
+    var n = $("#settings_confirm").is(":checked");
+
+    if (n && a > getConfirmBet()) {
+        var i = !1;
+        alerts.confirm(LNG.YOU_SURE_BET + formatNum(a) + LNG.WARNING_BET, function(n) {
+            n && !i && (i = !0, _roulette_bet(a, t, e, ROUND, n, function() {
+            _button.text(text);
+        }), LAST_BET = a, $(this).prop("disabled", !0))
+        }, 'warn', '', true)
+    } else
+        _roulette_bet(a, t, e, ROUND, n, function() {
+            _button.text(text);
+        }), LAST_BET = a, $(this).prop("disabled", !0);
+    return !1
+})
+
+$(document).on("click", "#balance_update", function() {
+    send('balance', {'a': 1});
+});
+
+$(document).on('click', '.room_select', function() {
+    var room = $(this).attr('room');
+    if(room != ROOM) {
+        //var text = $(this).text();
+        //var replace = $(this).clone();
+        //replace.html(replace.html().split('(')[0])
+        //$('.active_room').find('span').replaceWith(replace);
+        //$('.room_online').html($(this).attr('online') + ' / ' + parseInt($('#online').html()));
+        ROOM = room;
+        send('room_change', room);
+        //chat("alert", LNG.CHANGE_ROOM + text.split('(')[0])
+    }
+});
+
+var gradientStroke;
+var gradientStrokeLose;
+window.onload = function() {
+    
+
+
+    if(window.innerWidth <= 800) {
+
+        $(document).on('click', '.contextmenu', function(t){
+            cmenu(t, $(this));
+        });
+
+    }
+
+    window.responsiveTables.init();
+};
+
+
+$(document).on('click', '.round_players_show_button', function() {
+    
+    $(this).toggleText('Show users', 'Hide users');
+    $(this).toggleClass('active');
+    var type = $(this).attr('type');
+
+    $('.round_players[type="'+type+'"]').toggleClass('users_show');
+     
+});
+
+
+
+
+
+function cmenu(t, self) {
+
+    if (!t.ctrlKey) {
+        t.preventDefault();
+        var uid = $(self).attr("uid"); 
+        var name = $(self).attr("name");
+        var steamid = $(self).attr("steamid");
+        $(".u_actions [data-act=0]").html(name);
+        var n = $(".u_actions");
+        n.find('a[data-act="9"]').hide();
+        if(self.hasClass('context-msg')) n.find('a[data-act="9"]').show();
+        n.show().css({
+            position: "absolute",
+            left: getMenuPosition(t.clientX, "width", "scrollLeft"),
+            top: getMenuPosition(t.clientY, "height", "scrollTop")
+        }).addClass('active').off("click").on("click", "a", function(t) {
+            var i = $(this).data("act");
+            if (t.preventDefault(), n.hide(), 0 == i) {
+                $("#message_text").val(uid)
+            } else if (1 == i) {
+                modal('.mute_user');
+                $("#mute_uid").val(uid);
+            }
+            else if (2 == i) {
+                $("#message_text").val("/kick " + uid + " ")
+            } else if (3 == i) {
+                $("#message_text").val("/send " + uid + " ")
+            } else if (4 == i)
+                IGNORE.push(String(uid)), chat("alert", uid + LNG.IGNORED);
+            else if (5 == i) {
+                $("#message_text").val(uid + '@' + name.replace(/ /g, '_').replace(/\@/g, '').replace(/\,/g, '') + ", ")
+            } else if (6 == i) {
+                               // $("#muteHistoryModal").modal(), $("#muteHistoryId").html(e), $("#muteHistoryName").html(a), getBanList(e);
+            } else if (7 == i) {
+            // blockUser(a, e);
+            } else if (8 == i) {
+            // $("#tradeHistoryModal").modal(), $("#tradeHistoryId").html(e), $("#tradeHistoryName").html(a), getTradeList(a, e);
+            } else if(9 == i) {
+                var e = $(self).attr("unique_id");
+                send('remove_msg', {
+                    id: e,
+                    room: ROOM
+                })
+            }
+            $("#message_text").focus();
+        })
+    }   
+}
+
+$(document).on("click", function(t) {
+    if (!$(t.target).is("img, .contextmenu")) {
+        $(".u_actions").hide();
+    }
+    
+    
+ 
+})
+
+
+
+$(document).on("contextmenu", ".contextmenu", function(t) {
+            
+cmenu(t, $(this));
+
+});
+
+$(document).on("click", ".contextmenu", function(t) {
+    
+    if(window.innerWidth <= 800) {
+        cmenu(t, $(this))
+    }
+
+});
+
+function getMenuPosition(t, e, a) {
+        var n = $(window)[e](), i = $(window)[a](), s = $(".u_actions")[e](), o = t + i;
+        return t + s > n && t > s && (o -= s), o
+}
+
+function updateJackpot(jackpot) {
+    
+    jackpot = Math.round(jackpot);
+    
+    $('.poly_jackpot.jackpot_roulette').attr('poly-jackpot', jackpot);
+    var jackpot_length = jackpot.toString().length;
+    var li_length = $(document).find('.poly_jackpot.jackpot_roulette').find('li').length;
+    
+    if(jackpot_length > li_length) {
+        for(var j = 0; j < (jackpot_length - li_length); j++) {
+            $(document).find('.poly_jackpot.jackpot_roulette').append('<li> <span class="odometer odometer-theme-minimal">0</span> </li>');
+        }
+    } else if(jackpot_length < li_length) {
+        for(var j = 0; j < (li_length - jackpot_length); j++) {
+             $(document).find('.poly_jackpot.jackpot_roulette').find('li:last-child').remove();
+        }
+       
+    }
+    
+    if($(document).find('.poly_jackpot.jackpot_roulette').length) {
+      var polyJackpot = $(document).find('.poly_jackpot.jackpot_roulette').attr('poly-jackpot');
+      var b = String(polyJackpot).split("");
+      for (i=0; i<=polyJackpot.length; i++) {
+        $(document).find('.poly_jackpot.jackpot_roulette li:nth-of-type('+ i +') span').html(b[(i-1)]);
+      }
+    }
+    
+}
+
+function updateJackpotMatch(jackpot) {
+    
+    $('.poly_jackpot.jackpot_match').attr('poly-jackpot', jackpot);
+    var jackpot_length = jackpot.toString().length;
+    var li_length = $(document).find('.poly_jackpot.jackpot_match').find('li').length;
+    
+    if(jackpot_length > li_length) {
+        for(var j = 0; j < (jackpot_length - li_length); j++) {
+            $(document).find('.poly_jackpot.jackpot_match').append('<li> <span class="odometer odometer-theme-minimal">0</span> </li>');
+        }
+    } else if(jackpot_length < li_length) {
+        for(var j = 0; j < (li_length - jackpot_length); j++) {
+             $(document).find('.poly_jackpot.jackpot_match').find('li:last-child').remove();
+        }
+       
+    }
+    
+    if($(document).find('.poly_jackpot.jackpot_match').length) {
+      var polyJackpot = $(document).find('.poly_jackpot.jackpot_match').attr('poly-jackpot');
+      var b = String(polyJackpot).split("");
+      for (i=0; i<=polyJackpot.length; i++) {
+        $(document).find('.poly_jackpot.jackpot_match li:nth-of-type('+ i +') span').html(b[(i-1)]);
+      }
+    }
+    
+}
+
+
+
+
+
+var _btime = 0;
+function updateBalance(balance, btime, reload, cashback) {
+
+    if(btime >= _btime) {
+
+        _btime = btime;
+       
+        if(reload) {
+            $('.main-balance').fadeOut(100).html(balance).fadeIn(100);
+            $('.cashback-balance').fadeOut(100).html(cashback).fadeIn(100);
+        } else {
+            $('.main-balance').countTo(balance, {
+                'color': true
+            });
+            $('.cashback-balance').countTo(cashback, {
+                'color': true
+            });
+        }
+
+    }
+    
+}
+
+
+
+
+
+
+
+
+          
+   
+
+
+function __SOCKET_EVENT_MODE_CHANGE(data) {
+
+
+    if(game_change_id == data.page.id) {
+
+        if(window.myLine !== undefined) window.myLine.destroy();
+        
+        clearTimeout(finish_roll);
+        MODE = data.page.mode;
+        window.history.replaceState(null, null, data.page.href);
+        var _href = data.page.href.replace('/ru', '');
+        if(_href == '') _href = '/';
+        $('.lang_change[lang="ru"]').attr('href', '/ru' + _href)
+        $('.lang_change[lang="en"]').attr('href', _href)
+        $('link[hreflang="ru"]').attr("href", 'https://plg.bet/ru' + _href)
+        $('link[hreflang="en"]').attr("href", 'https://plg.bet' + _href)
+        
+        if(_href == '/') {
+            
+            $('.lang_change[lang="ru"]').attr('href', '/ru')
+            $('link[hreflang="ru"]').attr("href", 'https://plg.bet/ru')
+            
+        }
+
+        if(MODE != 'bets') {
+            if(typeof bt !== 'undefined' && bt !== null) {
+                bt.kill();
+            }
+        }
+
+        $('.game_select').removeClass('active');
+        $('.game_select[game="'+MODE+'"]').addClass('active');
+
+
+        $('.main_text_page').hide();
+        if(MODE == 'roulette') {
+            
+            $('.main_text_page').show();    
+            if(LANG_SELECT == 'ru') {
+                $('meta[name="description"]').attr("content", 'CSGO Polygon | Коинфлип, рулетка, Дайс & Другие игры | Играйте на скины CS GO на PLG.BET');
+                $('title').text('CSGOPolygon | PLG.BET');
+            } else {
+                $('meta[name="description"]').attr("content", 'CSGO Polygon | Coinflip, Roulette, Dice & More | Gambling on Trusted CS GO PLG.BET');
+                $('title').text('CSGOPolygon | Trusted CS GO Gambling Site');
+            }
+
+            $('.select_right').replaceWith(roulette_page);
+            window.Odometer.init();
+            if(balance_type == 1) {
+                $('.balance_main').show();
+                $('.main-balance').text($('#balance_p').text());
+            } else {
+                $('.balance_cashback').show();
+                $('.cashback-balance').text($('#balance_c').text());
+            }
+
+            if(data.game.status == 'WAIT' || data.game.status == 'BETS') {
+
+                cd(data.game.timer, data.game.timer_total);
+                for (var n = 0, i = 0; i < data.game.rolls.length; i++) {
+                    addHist(data.game.rolls[i].roll, data.game.rolls[i].rollid);
+                    n = data.game.rolls[i].roll;
+                    ROUND = data.game.rolls[i].rollid;
+                }
+                
+
+                for(var k = 0; k < data.game.bets.length; k++) {
+                    addBet(data.game.bets[k], false);    
+                }
+
+                try { tinysort('#green_bets     .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+                try { tinysort('#red_bets   .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+                try { tinysort('#black_bets     .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+
+                $('#green_bets      .total').countTo(data.game.sums.green);
+                $('#red_bets      .total').countTo(data.game.sums.red);
+                $('#black_bets     .total').countTo(data.game.sums.black);
+
+                updateJackpot(data.game.jackpot_amount)
+
+                $('.select_right').show();
+                snapRender(n, 0);
+
+            } else if(data.game.status == 'ROLLING') {
+                
+                for (var n = 0, i = 0; i < data.game.rolls.length; i++) {
+                    addHist(data.game.rolls[i].roll, data.game.rolls[i].rollid);
+                    n = data.game.rolls[i].roll;
+                    ROUND = data.game.rolls[i].rollid;
+                }
+                
+                for(var k = 0; k < data.game.bets.length; k++) {
+                    addBet(data.game.bets[k], false);    
+                }
+
+                try { tinysort('#green_bets     .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+                try { tinysort('#red_bets   .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+                try { tinysort('#black_bets     .betlist > li',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+
+                $('#green_bets      .total').countTo(data.game.sums.green);
+                $('#red_bets      .total').countTo(data.game.sums.red);
+                $('#black_bets     .total').countTo(data.game.sums.black);
+
+                updateJackpot(data.game.jackpot_amount)
+                
+                $('.select_right').show();
+                __SOCKET_EVENT_ROLL(data.game);
+
+            }
+
+        } else if(MODE == 'slots') {
+            
+            if(LANG_SELECT == 'ru') {
+                $('meta[name="description"]').attr("content", 'Играйте в Слоты на сайте CS GO Polygon. Вы можете играть на любые CSGO скины и повеселиться с друзьями');
+                $('title').text('CSGO Слоты - Играй в Слоты за Скины CSGO на PLG.BET');
+            } else {
+                $('meta[name="description"]').attr("content", 'Play CSGO Slots games on CS GO Polygon Skin Beting & Gambling Site. You can gamble all your desired skins and have fun with your friends');
+                $('title').text('CSGO Slots Site - Play CS GO Slots Gambling For SKINS on PLG.BET');
+            }
+            
+            
+            
+            $('.select_right').replaceWith(slots_page);
+            window.Odometer.init()
+            $('.select_right').show();
+            live_connect();
+
+        } else if(MODE == 'dice') {
+            
+            if(LANG_SELECT == 'ru') {
+                $('meta[name="description"]').attr("content", 'Играйте в Дайс на сайте CS GO Polygon. Вы можете играть на любые CSGO скины и повеселиться с друзьями');
+                $('title').text('CSGO Дайс - Играй в Дайс за Скины CSGO на PLG.BET');
+            } else {
+                $('meta[name="description"]').attr("content", 'Play CSGO Dice game on CS GO Polygon Skin Beting & Gambling Site. You can gamble all your desired skins and have fun with your friends');
+                $('title').text('CSGO Dice Site - Play CS GO Dice For SKINS on PLG.BET');
+            }
+            
+            
+
+            var seed = $('#pf_dc_client').attr('status');
+            $('.select_right').replaceWith(dice_page);
+            $('#dice_seed_client').html(seed);
+            $('#dice_seed_client').attr('status', seed)
+            $('.dice_number').ionRangeSlider({
+                type: "double",
+                min: 0,
+                max: 100,
+                from: 50,
+                to: 100,
+                from_min: 3,
+                from_max: 100,
+                to_min: 3,
+                to_max: 100,
+                min_interval: 1,
+                step: 0.01,
+                onStart: function(data) {
+                    dice_number_from = data.from;
+                    dice_number_to = data.to;
+                    dice_calculate();
+                },
+                onChange: function(data) {
+                    dice_number_from = data.from;
+                    dice_number_to = data.to;
+                    dice_calculate();
+                },
+            });
+            dice_calculate();
+            for(var k = 0; k < data.game.bets.length; k++) {
+                __SOCKET_EVENT_DICE_GAME(data.game.bets[k]);    
+            }
+            $('.select_right').show();
+
+        } else if(MODE == 'coinflip') {
+            
+            if(LANG_SELECT == 'ru') {
+                $('meta[name="description"]').attr("content", 'Играйте в Коинфлип на сайте CS GO Polygon. Вы можете играть на любые CSGO скины и повеселиться с друзьями');
+                $('title').text('CSGO Коинфлип - Играй в Коинфлип за Скины CSGO на PLG.BET');
+            } else {
+                $('meta[name="description"]').attr("content", 'Play CSGO Coinflip game on CS GO Polygon Skin Beting & Gambling Site. Choose your coin side and gamble desired skin!');
+                $('title').text('CSGO Coinflip Site - Play CS GO Coin Flip For SKINS on PLG.BET');
+            }
+            
+            
+
+            $('.select_right').replaceWith(coinflip_page);
+            $('.select_right').show();
+            $('#cf_showcount').niceSelect();
+            coinflip_connect();
+
+        } else if(MODE == 'crash') {
+            
+            if(LANG_SELECT == 'ru') {
+                $('meta[name="description"]').attr("content", 'Играйте в Краш на сайте CS GO Polygon. Вы можете играть на любые CSGO скины и повеселиться с друзьями');
+                $('title').text('CSGO Краш - Играй в Краш за Скины CSGO на PLG.BET');
+            } else {
+                $('meta[name="description"]').attr("content", 'Play CSGO Crash game on CS GO Polygon Skin Beting & Gambling Site. You can gamble all your desired skins and have fun with your friends');
+                $('title').text('CSGO Crash Site - Play CS GO Crash For SKINS on PLG.BET');
+            }
+            
+
+
+            $('.select_right').replaceWith(crash_page);
+            $('#crash-game-id').text(data.game.id);
+            $('#crash-game-hash').text(data.game.hash);
+            $('#crash-game-seed').text('hidden');
+
+            $('.toggler').click(function() {
+                if(crash_active_bet == false) {
+                    $(this).parent('.on_off').toggleClass('toggled');
+                }
+            });
+
+            crash_canvas_init();
+
+            if(data.game.status == 'started') {
+
+                var start_time = data.game.start_time;
+                var now_time = (new Date).getTime();
+                var game_time = now_time - start_time;
+                var x_times = game_time / 100;
+
+                var label = [];
+                var data_x = [];
+                var x = 0;
+
+                for(var m = 0; m < 100; m++) {
+                    label.push(m);
+                }
+
+                for(var l = 1; l < x_times + 1; l++) {
+                    x = (crash_x(100 * l) / 100).toFixed(2);  
+                    data_x.push(x);
+                    if(l > 100) label.push(l);
+                }
+
+                window.myLine.data.labels = label;
+                window.myLine.data.datasets[0].data = data_x;
+                window.myLine.options.scales.yAxes[0].ticks.max = Math.max.apply(2, data_x) + 0.5;
+                window.myLine.update();
+
+            } else if(data.game.status == 'end') {
+
+                window.myLine.data.datasets[0].backgroundColor = gradientStrokeLose;
+                window.myLine.data.datasets[0].borderColor = '#E1675A';
+                window.myLine.update();
+
+
+                $('.crash-info').text('CRASHED x' + (data.game.x / 100).toFixed(2)).css({
+                    'transition': 'color 200ms ease',
+                    'color': '#a74c5c'
+                });
+
+            }
+
+            if(data.game.my_bet.length > 0) {
+
+
+                for(var b = 0; b < data.game.my_bet.length; b++) {
+
+                    crash_bets[data.game.my_bet[b].bet_id] = {
+                        active: true,
+                        next_bet: false,
+                        amount: data.game.my_bet[b].amount,
+                        auto_enabled: data.game.my_bet[b].auto_enabled,
+                        auto_cashout: data.game.my_bet[b].auto_cashout
+                    };
+
+                    var auto_cashout_info = data.game.my_bet[b].auto_enabled == 1 ? ('x' + data.game.my_bet[b].auto_cashout) : 'DISABLED';
+                    $('.crash-bet-text[bet_id="'+data.game.my_bet[b].bet_id+'"]').html(crash_bet_placed_tmp.format(data.game.my_bet[b].amount, auto_cashout_info));
+
+                }
+
+            }
+            
+            for(var i = 0; i < data.game.bets.length; i++) {
+                //console.log('BET', data.game.bets[i]);
+                add_crash_bet(data.game.bets[i], false);
+            }
+            try { tinysort('.crash_user_tr',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+
+            if (data.game.last_games) {
+                for (var i = 0; i < data.game.last_games.length; i++) {
+                    var hClass = 'dark_label';
+                    var point = (data.game.last_games[i].crash / 100).toFixed(2);
+                    if (point > 1) hClass = 'red_label'
+                    if (point >= 1.5) hClass = 'aqua_label';
+                    if (point >= 2) hClass = 'green_label';
+                    $('.crash-history').append("<li data-hash='" + data.game.last_games[i].hash + "' data-id='" + data.game.last_games[i].id + "' data-seed='" + data.game.last_games[i].seed + "'><span class='" + hClass + "'>" + point + "</span></li>");
+        
+                }
+            }
+
+            $('.select_right').show();
+
+        } else if(MODE == 'bets') {
+            
+            if(LANG_SELECT == 'ru') {
+                $('meta[name="description"]').attr("content", 'CSGO Ставки на спорт доступны на CS GO Polygon. Поставь на любимую команду CSGO и выиграй желаемые скины!');
+                $('title').text('CSGO Ставки на спорт - Делайте Ставки на спорт за Скины CSGO на PLG.BET');
+            } else {
+                $('meta[name="description"]').attr("content", 'CSGO Skin Betting Available on CS GO Polygon Skin Beting & Gambling Site. Bet on your favorite CS GO team and win the desired skin!');
+                $('title').text('CSGO Betting Site - CS GO Match Betting For SKINS on PLG.BET');
+            }
+            
+            
+            
+
+            $('.select_right').replaceWith(bets_page);
+            $('.select_right').show();
+            get_betting();
+
+        } else if(MODE == 'tournament-bets') {
+            
+            if(LANG_SELECT == 'ru') {
+                $('meta[name="description"]').attr("content", 'CSGO Ставки на IEM RIO Major 2020 доступны на PLG.BET');
+                $('title').text('IEM RIO Major 2020 CSGO - Делайте Ставки на победителя турнира на PLG.BET');
+            } else {
+                $('meta[name="description"]').attr("content", 'CSGO Betting on IEM RIO Major 2020 available at PLG.BET');
+                $('title').text('IEM RIO Major 2020 CSGO - Bet on the winner of the tournament on PLG.BET');
+            }
+            
+            
+            
+
+            $('.select_right').replaceWith(tournament_bets_page);
+            $('.select_right').show();
+            tournament_connect();
+
+        }
+
+    }
+
+}
+
+
+
+
+let game_change = function(game, id, href) {
+
+    if(connected == 1) {
+
+        console.log({
+            game: game,
+            id: id,
+            href: href
+        });
+
+        SOCKET.emit('game_change', {
+            game: game,
+            id: id,
+            href: href
+        });
+
+    }
+
+}
+
+
+
+$(document).on('click', '.game_link', function (e) {
+
+    e.preventDefault();
+    var id = $(this).attr('id');
+    var href = $(this).attr('href');
+
+    if(MODE != id) {
+
+        game_change_id = Math.floor(Math.random() * 1000);
+        game_change(id, game_change_id, href)
+
+    }
+    
+});
+
+
+var roulette_page = `<div class=" select_right" id="select_roulette" style="display: none">
+<div class="rolling">
+   <div class="progress">
+      <div class="bar" style="width: 32%;">
+         <span class="progress_timer">Rolling in 15.23...</span>
+      </div>
+      <!-- /.bar -->
+      <span class="progress_timer">Rolling in 15.23...</span>
+   </div>
+   <!-- /.progress -->
+   <div class="roulette">
+      <!-- /.roulette_box -->
+   </div>
+   <!-- /.roulette -->
+   <div class="jackpot">
+      <ul class="balls">
+
+      </ul>
+      <div class="counter">
+         <a href="${link_prefix}jackpot/roulette">
+            <h3>Jackpot</h3>
+         </a>
+         <a href="${link_prefix}jackpot/roulette">
+            <div class="jackpot_snow">
+               <ul class="poly_jackpot jackpot_roulette" poly-jackpot="622687">
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+                  <li>
+                     <span class="odometer odometer-theme-minimal">0</span>
+                  </li>
+               </ul>
+            </div>
+         </a>
+      </div>
+      <!-- /.counter -->
+   </div>
+   <!-- /.jackpot -->
+   <div class="bet_panel">
+      <div class="bet_balance">
+         <span class="balance_main" style="display: none">Balance:
+         <strong><b id="balance_r" class="main-balance"></b></strong>
+         </span>
+         <span class="balance_cashback" style="display: none">Balance: <b style="display: inline-block" class="plg_roulette"></b>
+         <strong> <b id="balance_c" class="cashback-balance plg_coins" style="margin-left: 22px"></b></strong>
+         </span>
+         <i id="balance_update"></i>
+      </div>
+      <!-- /.bet_balance -->
+      <div class="your_bet">
+         <input type="text" id="roulette_amount" placeholder="Your bet...">
+         <ul>
+            <li>
+               <button type="button" name="button" class="clear button_amount_r" action="clear">Clear</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_r" action="10">+10</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_r" action="100">+100</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_r" action="1000">+1000</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_r" action="half">1 / 2</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_r" action="double">X2</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="red_inline button_amount_r" action="max">Max</button>
+            </li>
+         </ul>
+         <span class="bet_clean_button button_amount_r" action="clear"></span>
+      </div>
+      <!-- /.your_bet -->
+   </div>
+   <!-- /.bet_panel -->
+</div>
+<!-- /.rolling -->
+<div class="rounds">
+   <div class="round round_red">
+      <div class="round_button">
+         <!-- <button type="button" name="button" class="red_button">1 to 7</button> -->
+         <div class="round_bets">
+            <button type="button" name="button" class="red_button betButton" data-lower="1" data-upper="7">All Red</button>
+            <ul>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="1" data-upper="1">1</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="2" data-upper="2">2</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="3" data-upper="3">3</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="4" data-upper="4">4</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="5" data-upper="5">5</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="6" data-upper="6">6</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="7" data-upper="7">7</span>
+               </li>
+            </ul>
+         </div>
+         <!-- /.round_bets -->
+      </div>
+      <!-- /.round_button -->
+      <div class="round_details" id="red_bets_my">
+         <span class="round_counter mytotal">0</span>
+      </div>
+      <!-- /.round_details -->
+      <div class="round_list red" id="red_bets">
+         <div class="round_total">
+            <span class="players totalCount">0</span>
+            <span class="total_bet">Total bet:
+            <strong class="total">0</strong>
+            </span>
+         </div>
+         <!-- /.round_total -->
+         <span class="round_players_show_button" type="red">Show users</span>
+         <div class="round_players" type="red">
+            <ul class="betlist"></ul>
+         </div>
+         <!-- /.round_players -->
+      </div>
+      <!-- /.round_list -->
+   </div>
+   <!-- /.round -->
+   <div class="round round_green">
+      <div class="round_button">
+         <button type="button" name="button" class="green_button betButton" data-lower="0" data-upper="0">0</button>
+      </div>
+      <!-- /.round_button -->
+      <div class="round_details" id="green_bets_my">
+         <span class="round_counter mytotal">0</span>
+      </div>
+      <!-- /.round_details -->
+      <div class="round_list" id="green_bets">
+         <div class="round_total">
+            <span class="players totalCount">0</span>
+            <span class="total_bet">Total bet:
+            <strong class="total">0</strong>
+            </span>
+         </div>
+         <!-- /.round_total -->
+         <span class="round_players_show_button" type="green">Show users</span>
+         <div class="round_players" type="green">
+            <ul class="betlist"></ul>
+         </div>
+         <!-- /.round_players -->
+      </div>
+      <!-- /.round_list -->
+   </div>
+   <!-- /.round -->
+   <div class="round round_black">
+      <div class="round_button">
+         <!-- <button type="button" name="button" class="dark_button">8 to 14</button> -->
+         <div class="round_bets">
+            <button type="button" name="button" class="dark_button betButton" data-lower="8" data-upper="14">All Black</button>
+            <ul>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="8" data-upper="8">8</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="9" data-upper="9">9</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="10" data-upper="10">10</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="11" data-upper="11">11</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="12" data-upper="12">12</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="13" data-upper="13">13</span>
+               </li>
+               <li>
+                  <span class="round_bets_item betButton" data-lower="14" data-upper="14">14</span>
+               </li>
+            </ul>
+         </div>
+         <!-- /.round_bets -->
+      </div>
+      <!-- /.round_button -->
+      <div class="round_details" id="black_bets_my">
+         <span class="round_counter mytotal">0</span>
+      </div>
+      <!-- /.round_details -->
+      <div class="round_list" id="black_bets">
+         <div class="round_total">
+            <span class="players totalCount">0</span>
+            <span class="total_bet">Total bet:
+            <strong class="total">0</strong>
+            </span>
+         </div>
+         <!-- /.round_total -->
+         <span class="round_players_show_button" type="black">Show users</span>
+         <div class="round_players" type="black">
+            <ul class="betlist"></ul>
+         </div>
+         <!-- /.round_players -->
+      </div>
+      <!-- /.round_list -->
+   </div>
+   <!-- /.round -->
+</div>
+<!-- /.rounds -->
+</div>`;
+
+var slots_page = `<div class="games_page select_right " id="select_live" style="display: none">
+<a href="/jackpot/casino" target="_blank">
+   <div class="jackpot_area">
+      <div class="jackpot_area_row">
+         <h3>Jackpot</h3>
+         <ul class="poly_jackpot casino_jackpot_live" poly-jackpot="2349">
+            <li>
+               <span class="odometer odometer-theme-minimal">0</span>
+            </li>
+            <li>
+               <span class="odometer odometer-theme-minimal">0</span>
+            </li>
+            <li>
+               <span class="odometer odometer-theme-minimal">0</span>
+            </li>
+            <li>
+               <span class="odometer odometer-theme-minimal">0</span>
+            </li>
+            <li>
+               <span class="odometer odometer-theme-minimal">0</span>
+            </li>
+            <li>
+               <span class="odometer odometer-theme-minimal">0</span>
+            </li>
+            <li>
+               <span class=" odometer-theme-minimal">
+                  <div class="odometer-inside">
+                     <span class="odometer-digit">
+                     <span class="odometer-digit-inner">
+                     <span class="odometer-ribbon">
+                     <span class="odometer-ribbon-inner">
+                     <span class="odometer-value">$</span>
+                     </span>
+                     </span>
+                     </span>
+                     </span>
+                  </div>
+               </span>
+            </li>
+         </ul>
+      </div>
+      <!-- /.jackpot_area_row -->
+   </div>
+</a>
+<!-- /.jackpot_area -->
+<div class="inventory_left_top">
+   <div class="payments_top">
+      <ul>
+         <li>
+            <a href="#" class="payments_category game_category active" type="all">All games</a>
+         </li>
+         <li>
+            <a href="#" class="payments_category game_category" type="favorite">Favorite games</a>
+         </li>
+      </ul>
+   </div>
+   <!-- /.payments_top -->
+   <div class="inventory_left_top_sort">
+      <div class="inventory_sort_unit">
+         <h3>Game type</h3>
+         <div class="default_select">
+            <select class="nn casino_select" id="casino_types">
+               <option data-display="All">All</option>
+            </select>
+         </div>
+         <!-- /.default_select -->
+      </div>
+      <!-- /.inventory_sort_unit -->
+      <div class="inventory_sort_unit providers_select">
+         <div class="providers_select_row">
+            <div class="select_with_search">
+               <select id='standard' name='standard' class='custom-select casino_select casino_providers nn'>
+                  <option data-display="All" value="All">All providers</option>
+               </select>
+            </div>
+            <!-- /.select_with_search -->
+         </div>
+         <!-- /.providers_select_row -->
+      </div>
+      <!-- /.inventory_sort_unit -->
+      <div class="inventory_sort_unit">
+         <div class="default_search">
+            <form action="index.html" method="post">
+               <input type="text" placeholder="Search items..." onkeypress="return event.keyCode != 13;" id="casino_filter">
+               <button type="button" name="button"></button>
+            </form>
+         </div>
+         <!-- /.default_search -->
+      </div>
+      <!-- /.inventory_sort_unit -->
+   </div>
+   <!-- /.inventory_left_top_sort -->
+</div>
+<!-- /.inventory_left_top -->
+<div class="games_row grid">
+</div>
+<div style="display: flex;justify-content: center;margin-top: 20px;color:#B9B9B9">
+    <h1>CSGO Slots</h1>
+</div>
+<!-- /.games_row -->
+</div>`;
+
+
+var slots_game_page = `<div class="game_action select_right games_page" id="select_live_iframe" style="display: none">
+<a href="/jackpot/casino" target="_blank">
+    <div class="jackpot_area">
+        <div class="jackpot_area_row">
+            <h3>Jackpot</h3>
+            <ul class="poly_jackpot casino_jackpot_iframe" poly-jackpot="234">
+                <li> <span class="odometer odometer-theme-minimal">0</span> </li>
+                <li> <span class="odometer odometer-theme-minimal">0</span> </li>
+                <li> <span class="odometer odometer-theme-minimal">0</span> </li>
+                <li> <span class="odometer odometer-theme-minimal">0</span> </li>
+                <li> <span class="odometer odometer-theme-minimal">0</span> </li>
+                <li> <span class="odometer odometer-theme-minimal">0</span> </li>
+                <li> <span class=" odometer-theme-minimal">
+        <div class="odometer-inside">
+            <span class="odometer-digit">
+                
+                <span class="odometer-digit-inner">
+                    <span class="odometer-ribbon">
+                    <span class="odometer-ribbon-inner">
+                        <span class="odometer-value">$</span> </span>
+                    </span>
+                    </span>
+                    </span>
+        </div>
+        </span>
+        </li>
+        </ul>
+    </div>
+    <!-- /.jackpot_area_row -->
+</div>
+</a>
+<!-- /.jackpot_area -->
+<div class="game_action_top"> <a class="game_link back_button" id="slots" href="/slots">Back</a>
+<div class="game_action_top_info">
+    <h3 id="game_name"></h3> <span id="game_provider"></span> </div>
+<!-- /.game_action_top_info -->
+<div class="game_action_side">
+    <!-- /.inventory_sort_unit --><span id="casino_rtp" style="display: flex;justify-content: center;align-items: center;color: #DADAE1;">
+    <div>
+        <div>RTP</div>
+        <div><i id="rtp_percent">-</i>%</div>
+    </div>
+</span> <span class="game_action_orientation"></span> <span class="game_action_like"></span> </div>
+<!-- /.game_action_side -->
+</div>
+<!-- /.game_action_top -->
+<div class="game_action_player" style="width: 100%; height: 705px">
+<div id="casino_loading" style="color:white; margin: 15px;">Loading..</div>
+<iframe id="game_iframe" style="width: 100%; height: 100%;" allowfullscreen="" webkitallowfullscreen="true" mozallowfullscreen="true" oallowfullscreen="true" msallowfullscreen="true">Loading...</iframe>
+</div>
+<div style="display: flex;justify-content: center;margin-top: 20px;color:#B9B9B9">
+    <h1>CSGO Slots</h1>
+</div>
+<!-- /.game_action_player -->
+</div>`;
+
+
+var live_game_format = '<a onclick="return false;" href="#" class="games_row_item" liked="{6}" game_name="{1}" game_type="{4}" game_provider="{2}" game_id="{3}">'
+live_game_format += '<div class="games_row_item_pic games_casino_select" game_id="{3}"><img src="{0}"><img src="{0}"></div>';
+live_game_format += '<div class="games_row_item_description">';
+live_game_format += '<h3 class="games_casino_select" game_id="{3}">{1}</h3>';
+live_game_format += '<span class="games_casino_select" game_id="{3}">{2}</span>';
+live_game_format += '<span class="games_item_like {5}" game_id="{3}"></span>'; 
+live_game_format += '</div>';
+live_game_format += '</a>';
+
+var casino_first_load = true;
+var cstSel;
+function live_connect() {
+    casino_loading = true;
+    $.ajax({   
+        url : '/scripts/casino/game_list',
+        type : 'post',
+        data : {
+            limit: 20,
+            offset: 0,
+            provider: 'All',
+            favorite: $('.game_category[type="favorite"]').hasClass('active') ? true : false
+        },
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+                
+                $('.games_row').html('');
+                var types = [];
+                var providers = data.providers;
+                casino_limit = data.pagination.limit;
+                casino_offset = data.pagination.offset;
+                casino_count = data.pagination.count;
+                for(game of data.games) {
+                
+
+                    var liked = '';
+                    
+                    var image = "https://" + window.location.hostname + "/images/slot/" + game.image;
+
+                    var add_game = live_game_format.format(image, game.name, game.provider, game.id, game.type, liked, false);
+                    $('.games_row').append($(add_game));
+
+                }
+
+                //if(casino_first_load === true) {
+                    for(game_provider of providers) {
+                        $('.casino_providers').append('<option value="'+game_provider+'">'+game_provider+'</option>');
+                    }
+                    cstSel = $(".casino_providers").customselect();
+                //}
+
+                $('#casino_types').niceSelect();
+                
+
+                $(".casino_providers").change(function() {
+                    $('#casino_filter').val('')
+                    casino_limit = 20;
+                    casino_offset = 0;
+                    casino_filter();
+                });
+                $('#casino_filter').val('')
+                cstSel.customselect('select', 'All')
+                casino_loading = false;
+                casino_first_load = false;
+
+                var new_jackpot_amount = Math.round(data.jackpot).toString();
+                if(new_jackpot_amount.length < 6) {
+
+                    var need_0 = (6 - new_jackpot_amount.length);
+                    for(var k =0; k < need_0; k++) {
+                        new_jackpot_amount = "0" + new_jackpot_amount;
+                    }
+
+                }  
+
+                new_jackpot_amount = new_jackpot_amount + '$';
+                
+                
+                //console.log('new_jackpot_amount', new_jackpot_amount)
+
+                  var b = String(new_jackpot_amount).split("");
+                  
+                      for (i=0; i<=new_jackpot_amount.length; i++) {
+                        $('.casino_jackpot_live li:nth-of-type('+ i +') span').html(b[(i-1)]);
+                      }
+                  
+                      for (i=0; i<=new_jackpot_amount.length; i++) {
+                        $('.casino_jackpot_iframe li:nth-of-type('+ i +') span').html(b[(i-1)]);
+                      }
+                  
+
+
+
+            } else {
+            
+                chat('error', data.error);
+            }
+        },
+        error : err => {
+            console.log(err.responseText);
+        }
+    });
+
+}
+
+$(document).on('click', '.game_category', function() {
+
+    $('.game_category').removeClass('active');
+    $(this).addClass('active');
+    var type = $(this).attr('type');
+    casino_limit = 20;
+    casino_offset = 0;
+    casino_filter();
+
+})
+
+$(document).on('click', '.game_action_like', function() {
+
+    if($(this).attr('stop') == 'false') {
+
+        if($(this).hasClass('liked')) {
+
+            var id = $(this).attr('game_id');
+            $(this).removeClass('liked');
+            $.ajax({
+                url : '/scripts/casino/remove_like',
+                type : 'post',
+                data : {
+                    id: id
+                }
+            });
+
+        } else {
+
+
+            var id = $(this).attr('game_id');
+            $(this).addClass('liked');
+            $.ajax({
+                url : '/scripts/casino/like',
+                type : 'post',
+                data : {
+                    id: id
+                }
+            });
+
+        }
+
+    }
+
+})
+
+$(document).on('click', '.games_item_like', function() {
+
+    if($(this).hasClass('liked')) {
+
+        var id = $(this).attr('game_id');
+        $(this).removeClass('liked');
+        $('.games_row_item[game_id="'+id+'"]').attr('liked', false);
+        $.ajax({
+            url : '/scripts/casino/remove_like',
+            type : 'post',
+            data : {
+                id: id
+            }
+        });
+
+    } else {
+
+
+        var id = $(this).attr('game_id');
+        $(this).addClass('liked');
+        $('.games_row_item[game_id="'+id+'"]').attr('liked', true);
+        $.ajax({
+            url : '/scripts/casino/like',
+            type : 'post',
+            data : {
+                id: id
+            }
+        });
+
+    }
+
+})
+
+
+$(document).on('click', '.games_casino_select', function() {
+
+    var id = $(this).attr('game_id');
+    select_game(id);
+
+})
+
+$(document).on('click', '#game_list', function() {
+
+    game_opened = false;
+    $("#game_iframe").attr('src', '');
+
+
+})
+
+var game_opened = false;
+function select_game(id) {
+
+        $('.select_right').replaceWith(slots_game_page);
+        window.Odometer.init()
+        $('.select_right').show();
+        MODE = 'slot_game';
+        
+        $('#casino_rtp').hide()
+        $('.game_action_like').attr('stop', 'true');
+
+        $('#casino_loading').show();
+        $.ajax({
+            url : '/scripts/casino/init_game',
+            type : 'post',
+            data : {
+                id: id,
+                balance_type: balance_type
+            },
+            success : data => {
+                $('#casino_loading').hide();
+                data = JSON.parse(data);
+                    if(data.success) {
+                            
+                            casino_game_id = id; 
+                       
+                            $('.game_action_like').attr('stop', 'false');
+                            $('.game_action_like').attr('game_id', data.id);
+                            if(data.liked == true) {
+                                $('.game_action_like').addClass('liked')
+                            } else {
+                                $('.game_action_like').removeClass('liked')
+                            }
+
+                            $("#game_iframe").attr('src', data.url);
+                            $("#game_name").html(data.name);
+                            $("#game_provider").html(data.provider);
+                            
+                            
+                            if(data.rtp == false) {
+                                $('#casino_rtp').hide()
+                            } else {
+                                $('#casino_rtp').show();
+                                $('#rtp_percent').html(data.rtp)
+                            }
+                            
+                            game_opened = true
+
+                            var new_jackpot_amount = Math.round(data.jackpot).toString();
+                            if(new_jackpot_amount.length < 6) {
+            
+                                var need_0 = (6 - new_jackpot_amount.length);
+                                for(var k =0; k < need_0; k++) {
+                                    new_jackpot_amount = "0" + new_jackpot_amount;
+                                }
+            
+                            }  
+            
+                            new_jackpot_amount = new_jackpot_amount + '$';
+                            
+                            
+                            //console.log('new_jackpot_amount', new_jackpot_amount)
+            
+                              var b = String(new_jackpot_amount).split("");
+                              
+                                  for (i=0; i<=new_jackpot_amount.length; i++) {
+                                    $('.casino_jackpot_live li:nth-of-type('+ i +') span').html(b[(i-1)]);
+                                  }
+                              
+                                  for (i=0; i<=new_jackpot_amount.length; i++) {
+                                    $('.casino_jackpot_iframe li:nth-of-type('+ i +') span').html(b[(i-1)]);
+                                  }
+                       
+                        
+                
+        
+                    } else {
+                        alerts.notify(data.error, 'Error', 'error', true);
+                         game_opened = false;
+              
+                    }
+                },
+                error : err => {
+                    alerts.notify(err.responseText, 'Error', 'error', true);
+                    game_opened = false;
+      
+                }
+            });
+
+}
+
+var casino_game_id = false;
+var casino_limit = 20;
+var casino_offset = 0;
+var casino_count = 0;
+var typingTimer;               
+var doneTypingInterval = 350; 
+var casino_loading = true;
+
+
+function casino_filter () {
+    casino_loading = true;
+    $.ajax({
+        url : '/scripts/casino/game_list',
+        type : 'post',
+        data : {
+            limit: casino_limit,
+            offset: casino_offset,
+            provider: $(".casino_providers").val(),
+            name: $('#casino_filter').val(),
+            favorite: $('.game_category[type="favorite"]').hasClass('active') ? true : false
+        },
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+                
+                if(data.pagination.offset == 0) $('.games_row').html('');
+                var types = [];
+                var providers = data.providers;
+                casino_limit = data.pagination.limit;
+                casino_offset = data.pagination.offset + casino_limit;
+                casino_count = data.pagination.count;
+                for(game of data.games) {
+                
+
+                    var liked = game.liked === true ? 'liked' : '';
+                    
+                    var image = "https://" + window.location.hostname + "/images/slot/" + game.image;
+
+                    var add_game = live_game_format.format(image, game.name, game.provider, game.id, game.type, liked, game.liked);
+                    $('.games_row').append($(add_game));
+
+                }
+                $('.casino_loading').remove();
+                casino_loading = false;
+
+            } else {
+                $('.casino_loading').remove();
+                casino_loading = false;
+                chat('error', data.error);
+            }
+        },
+        error : err => {
+            $('.casino_loading').remove();
+            casino_loading = false;
+            console.log(err.responseText);
+        }
+    });
+}
+
+$(window).scroll(function() {
+    if($('.game_select[game="slots"]').hasClass('active') && casino_loading === false) {
+        if($(window).scrollTop() >= ($(document).height() - $(window).height() - ($(document).height() - $(window).height()) * 0.05))   {
+               
+               if(casino_count - casino_offset > 0) {
+
+                   $('<button class="load_more table_page_button casino_loading" style="" offset="5"><span>Loading..</span></button>').insertAfter('.games_row');
+                   casino_filter();
+
+               }
+        }
+    }
+});
+
+$(document).on('keyup paste', '#casino_filter', function() {
+    
+    clearTimeout(typingTimer);
+
+    casino_limit = 20;
+    casino_offset = 0;
+    typingTimer = setTimeout(casino_filter, doneTypingInterval);
+    
+})
+
+
+var dice_page = `<div class="dice select_right" id="select_dice" style="display: none">
+<div class="dice_top">
+   <h1>CSGO Dice</h1>
+   <div class="dice_panel">
+      <div class="dice_bet_settings">
+         <div class="dice_bet_amount">
+            <span class="field_tip">Bet amount</span>
+            <input type="text" id="dice_amount" value="100">
+            <ul>
+               <li>
+                  <button type="button" name="button" class="button_amount_d gray_inline" action="1000">+1000</button>
+               </li>
+               <li>
+                  <button type="button" name="button" class="button_amount_d gray_inline" action="half">1 / 2</button>
+               </li>
+               <li>
+                  <button type="button" name="button" class="button_amount_d gray_inline" action="double">X2</button>
+               </li>
+            </ul>
+            <button type="button" name="button" class="button_amount_d red_inline" action="clear">Clear</button>
+            <div class="probably_fair_panel">
+               <div class="probably_fair_panel_info">
+                  <h3>Provably fair</h3>
+                  <p>Client seed: <span id="dice_seed_client" status=""></span></p>
+               </div>
+               <!-- /.probably_fair_panel_info -->
+               <a href="#" class="probably_fair_change" id="dice_change_seed">Change</a>
+            </div>
+            <!-- /.probably_fair_panel -->
+         </div>
+         <!-- /.dice_bet_amount -->
+         <div class="dice_bet_description">
+            <div class="dice_bet_description_row">
+               <div class="dice_bet_description_unit">
+                  <span class="field_tip">Payout</span>
+                  <span class="changement">
+                  <span id="dice_payout"></span>x
+                  </span>
+               </div>
+               <!-- /.dice_bet_description_unit -->
+               <div class="dice_bet_description_unit">
+                  <span class="field_tip">Win chance</span>
+                  <span class="changement">
+                  <span id="dice_win_chance"></span>%
+                  </span>
+               </div>
+               <!-- /.dice_bet_description_unit -->
+               <div class="dice_bet_description_unit">
+                  <span class="field_tip">Profit on win</span>
+                  <span class="changement">
+                  <input id="dice_profit">
+                  </span>
+               </div>
+               <!-- /.dice_bet_description_unit -->
+            </div>
+            <!-- /.dice_bet_description_row -->
+            <div class="dice_range">
+               <div class="dice-slider-block">
+                  <input class="dice_number" type="text" value="" />
+                  <span id="dice_result" class="dice_result_win" style="left: 600px;display:none">48.8887</span>
+               </div>
+               <!-- /.dice-slider-block -->
+            </div>
+            <!-- /.dice_range -->
+            <button type="button" name="button" class="place_bet" id="dice_play">Place bet</button>
+         </div>
+         <!-- /.dice_bet_description -->
+      </div>
+      <!-- /.dice_bet_settings -->
+   </div>
+   <!-- /.dice_panel -->
+</div>
+<!-- /.dice_top -->
+<div class="table_row">
+   <table class="responsive dice-games">
+      <tr class="dice_bets_table">
+         <th>Game</th>
+         <th>Time</th>
+         <th>User</th>
+         <th>Bet</th>
+         <th>Chance</th>
+         <th>Roll</th>
+         <th>Profit</th>
+      </tr>
+   </table>
+</div>
+<!-- /.table_row -->
+</div>`;
+
+
+var dice_number_from = 50;
+var dice_number_to = 100;
+
+function dice_calculate() {
+    var win_chance = (dice_number_to - dice_number_from).toFixed(2);
+    var factor = (97 / win_chance).toFixed(4);
+    var bet_amount = $('#dice_amount').val();
+    if(getCookie("settings_dongers") == 'true') {
+        var profit = parseFloat((bet_amount * factor).toFixed(4));
+    } else {
+        var profit = parseInt(bet_amount * factor);
+    }
+    
+
+    $('#dice_payout').text(factor);
+    $('#dice_win_chance').text(win_chance);
+    $('#dice_profit').val(profit);
+}
+
+$(document).on('click', '#dice_change_seed', function() {
+    modal('.dc_provably')
+ });
+ 
+ $(document).on('click', '.save_new_seed', function() {
+     var next = $('#dice_next_client').val();
+     alerts.confirm('Change current seed to '+next+'?', function(r) {
+         if (r) {
+             
+             $.ajax({
+                 url : '/scripts/dice/change_seed',
+                 type : 'post',
+                 data : {
+                     next: next
+                 },
+                 success : data => {
+                    
+                     data = JSON.parse(data);
+                     if(data.success) {
+                         
+                         alerts.notify('', 'success', 'success', false);
+                         $('#pf_dc_client').html(data.seed_client);
+                         $('#pf_dc_client').attr('status', data.seed_client);
+                         $('#dc_pf_server_hasheed').html(data.seed_server_hash);
+                         $('#dice_next_client').val(data.next_random);
+                         $('#dice_next_server_hashed').val(data.next_hashed);
+                         $('#dice_seed_client').html(data.seed_client);
+                         $('#dice_seed_client').attr('status', data.seed_client);
+                 
+         
+                     } else {
+                         alerts.notify(data.error, 'Error', 'error', true);
+                     }
+                 },
+                 error : err => {
+                     alerts.notify(err.responseText, 'Error', 'error', true);
+                 }
+             });
+         }
+     })
+ });
+
+ $(document).on("click", ".button_amount_d", function() {
+    var t = parseInt($('#dice_amount').val()) || 0;
+
+    var a = $(this).attr("action");
+    if ("clear" == a)
+        t = 0;
+    else if ("double" == a)
+        t *= 2;
+    else if ("half" == a)
+        t /= 2;
+    else if ("max" == a) {
+        var e = MAX_BET;
+        t = Math.min(parseInt($("#balance_p").html()), e);
+    } else
+        "last" == a ? t = 0 : t += parseInt(a);
+    $("#dice_amount").val(parseInt(t) || 0)
+    dice_calculate();
+});
+
+$(document).on('keyup', '#dice_amount', function() {
+    dice_calculate();
+})
+
+
+
+function getConfirmBet() {
+    if(getCookie("settings_dongers") == 'true') {
+        return 10;           
+    } else {
+        return 10000;
+    }
+ }      
+
+
+$(document).on('click', '#dice_play', function() {
+
+    if ($('#dice_seed_client').attr('status') == 'error' || $('#dice_seed_client').attr('status') == 'Not created yet') {
+        var next = $('#dice_next_client').val();
+        $.ajax({
+            url : '/scripts/dice/change_seed',
+            type : 'post',
+            data : {
+                next: next
+            },
+            success : data => {
+                data = JSON.parse(data);
+                    if(data.success) {
+                        
+                        
+                        $('#pf_dc_client').html(data.seed_client);
+                        $('#pf_dc_client').attr('status', data.seed_client)
+                        $('#dc_pf_server_hasheed').html(data.seed_server_hash);
+                        $('#dice_next_client').val(data.next_random);
+                        $('#dice_next_server_hashed').val(data.next_hashed);
+                        $('#dice_seed_client').html(data.seed_client)
+                        
+                        $('#dice_seed_client').attr('status', data.seed_client)
+                
+        
+                    } else {
+                        alerts.notify(data.error, 'Error', 'error', true);
+                    }
+                },
+                error : err => {
+                    alerts.notify(err.responseText, 'Error', 'error', true);
+                }
+            });
+
+    } else {
+
+        
+    
+        var n = $("#settings_confirm").is(":checked");
+        
+        if($("#settings_dongers").is(":checked")) {
+            var a = parseFloat($('#dice_amount').val()) || 0;
+        } else {
+            var a = parseInt($('#dice_amount').val()) || 0;
+        }
+        var f = parseFloat(dice_number_from);
+        var t = parseFloat(dice_number_to);
+
+       
+        //return;
+        $("#settings_dongers").is(":checked") && (a = 1000 * a), a = Math.floor(a)
+        var i = false;
+        if (n && a > getConfirmBet()) {
+            alerts.confirm(LNG.YOU_SURE_BET + formatNum(a) + LNG.WARNING_BET, function(n) {
+                if (n) {
+                    $(this).prop('disabled', true);
+                    _dice_bet(a, f, t, function() {
+                        
+                    })
+                }
+            }, 'warn', '', true);
+        } else {
+            $(this).prop('disabled', true);
+            _dice_bet(a, f, t, function() {
+                
+            })
+        }
+
+    }
+});
+
+
+function _dice_bet(amount, f, t, callback) {
+
+    if(connected == 1) {
+        $.ajax({
+            url : 'scripts/dice/bet',
+            type : 'post',
+            data : {
+                amount: amount,
+                number_from: f,
+                number_to: t,
+                balance_type: balance_type
+            },
+            success : data => {
+                try {
+                    data = JSON.parse(data);
+                    if(data.success) {
+
+                        callback();
+                        __SOCKET_EVENT_DICE_ROLL(data.data);
+                
+        
+                    } else {
+                        chat('error', data.error);
+                        callback();
+                        $('#dice_play').prop('disabled', false);
+                    }
+
+                    
+
+                } catch(err) {
+
+                    if(data.includes('get_jhash')) {
+
+                        alerts.notify(LNG.ERROR_RELOAD, 'Error', 'error', true, function() {
+                                
+                            window.location.reload();
+                            
+                        });
+
+                    } else {
+
+                        alerts.notify(err.message, 'Error', 'error', true);
+
+                    }
+
+                    callback();
+                    $('#dice_play').prop('disabled', false);
+                   
+                }
+            },
+            error : err => {
+             
+                alerts.notify(err.responseText, 'Error', 'error', true);
+                callback();
+                $('#dice_play').prop('disabled', false);
+
+                
+            }
+        }); 
+
+    }
+}
+
+var dice_bet_tmp = '<tr>';
+dice_bet_tmp += '<td><span data-type="responsive">Game</span><span class="game_id">{0}</span></td>';
+dice_bet_tmp += '<td><span data-type="responsive">Time</span><span>{1}</span></td>';
+dice_bet_tmp += '<td><span data-type="responsive">User</span><a href="{9}" target="_blank"  class="table_user"><i class="userpic userpic_inner {14}"><span class="{18}"><img src="{2}" alt="{3}" class="contextmenu" steamid="{10}" uid="{11}" name={3}></span></i><span {12}>{13}</span></a></td>';
+dice_bet_tmp += '<td style="position: relative;"><span data-type="responsive">Bet</span><span>{15}<span style="{16}">{4}</span></span></span></td>';
+dice_bet_tmp += '<td><span data-type="responsive">Chance</span><span>{5}%</span></td>';
+dice_bet_tmp += '<td><span data-type="responsive">Roll</span><span>{6}</span></td>';
+dice_bet_tmp += '<td><span data-type="responsive">Profit</span><span class="profit {7}">{8}</span></td>';
+dice_bet_tmp += '</tr>';
+
+
+var dice_plg = '<i class="plg_table" style=""></i>';
+
+
+function __SOCKET_EVENT_DICE_ROLL(data) {
+
+
+    $('#dice_play').prop('disabled', false);
+    $("#dice_result").removeClass('dice_result_win');
+    $("#dice_result").removeClass('dice_result_lose')
+
+    if (data.result == 1) $("#dice_result").addClass('dice_result_win');
+    else $("#dice_result").addClass('dice_result_lose');
+
+    $("#dice_result").show();
+    $("#dice_result").text(data.roll);
+    var slider_w = $('.dice-slider-block').width();
+    var result_w = $("#dice_result").width();
+    var left_minus = (result_w / (slider_w / 100)) / 2;
+    var result_left = data.roll - left_minus;
+
+    $("#dice_result").animate({
+        left: result_left + "%"
+    }, 200);
+
+
+}
+
+function __SOCKET_EVENT_DICE_GAME(data) {
+
+    if ($('.dice-games > tbody > tr').length >= 15) $('.dice-games > tbody > tr').eq(15).remove();
+
+    var c_time = data.time;
+    var chance = (data.target_to - data.target_from).toFixed(2);
+    if(data.avatar.includes('http')) {
+        var avatar = data.avatar
+    } else {
+         var avatar = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + data.avatar;
+    }
+    
+    var profit = data.result == 1 ? data.profit : data.amount * -1;
+    var profit_class = data.result == 1  ? 'win' : 'lose';
+
+    var link = '#';
+    if(data.steamid != 0) {
+        link = 'https://steamcommunity.com/profiles/' + data.steamid;
+    }
+    
+    data.username = data.username.substr(0, 20);
+    var username = data.username
+
+
+
+    if (data.prefix != undefined && data.prefix != '') {
+        var p_color = '';
+        var p = ''
+        if(data.prefix_color != '') p_color = 'style="color: ' + data.prefix_color + ';margin-right:3px"';
+        data.username = prefix_tmp.format(data.prefix, p_color) + ' ' + data.username;
+    }
+
+        if(getCookie("settings_hideusers") == 'true') {
+
+            data.username = username.substring(0,2) + '*'
+            avatar = '/images/chat/server.png';
+
+        }
+
+    var n_color = '';
+    if(data.name_color != undefined && data.name_color != '') n_color = 'style="color: ' + data.name_color + '"';
+    if(data.link != undefined && data.link != '') link = data.link;
+
+
+    var i_c = '';
+    if(data.img_class != '') {
+        i_c = data.img_class;
+    }
+    
+    
+    var g_c = '';
+    if(data.gift_class != undefined && data.gift_class != '') {
+        g_c = data.gift_class;
+    }
+
+
+    var plg_bet = '';
+    var b_style = '';
+    var amount_style = '';
+    if(data.bet_type == 2) {
+        plg_bet = dice_plg;
+        b_style = 'color:#E164AF;';
+    }
+
+    var dice_bet = dice_bet_tmp.format(data.id, c_time, avatar, username, data.amount, chance, data.roll, profit_class, profit, link, data.steamid, data.uid, n_color, data.username, i_c, plg_bet, b_style, amount_style, g_c);
+
+    if (($("#settings_mydices").is(":checked") && data.uid == USER) || !$("#settings_mydices").is(":checked")) {
+        $('.dice_bets_table').after($(dice_bet));
+    }
+
+
+
+}
+
+var coinflip_page = `<div class="coinflip select_right" id="select_coinflip" style="display: none">
+<div class="coinflip_top">
+   <div class="coinflip_top_main">
+      <h1>CSGO Coinflip</h1>
+      <div class="coinflip_top_main_right">
+         <div class="coinflip_side">
+            <h3>Side</h3>
+            <span class="side_item" side="1"></span>
+            <span class="side_item current" side="2"></span>
+         </div>
+         <!-- /.coinflip_side -->
+         <div class="coinflip_bet_amount">
+            <h3>Bet amount</h3>
+            <div class="coinflip_bet_amount_field">
+               <input type="text" value="50" id="coinflip_amount">
+               <span class="coinflip_bet_clear button_amount_cf" action="clear">Clear</span>
+            </div>
+            <!-- /.coinflip_bet_amount_field -->
+            <div class="coinflip_bet_amount_box">
+               <ul>
+                  <li>
+                     <button type="button" name="button" class="gray_inline button_amount_cf" action="100">+100</button>
+                  </li>
+                  <li>
+                     <button type="button" name="button" class="gray_inline button_amount_cf" action="1000">+1000</button>
+                  </li>
+                  <li>
+                     <button type="button" name="button" class="gray_inline button_amount_cf" action="half">1 / 2</button>
+                  </li>
+                  <li>
+                     <button type="button" name="button" class="gray_inline button_amount_cf" action="double">X2</button>
+                  </li>
+               </ul>
+               <!-- /.default_select -->
+            </div>
+            <!-- /.coinflip_bet_amount_box -->
+            <button type="button" name="button" id="coinflip_create">Create game</button>
+         </div>
+         <!-- /.coinflip_bet_amount -->
+      </div>
+      <!-- /.coinflip_top_main_right -->
+   </div>
+   <!-- /.coinflip_top_main -->
+   <div class="coinflip_top_secondary">
+      <h3>My games <span id="coinflip_count_my">0</span></h3>
+      <ul>
+         <li class="active">
+            <span>Current</span>
+         </li>
+         <li>
+            <span><a href="${link_prefix}history/coinflip">History</a></span>
+         </li>
+      </ul>
+   </div>
+   <!-- /.coinflip_top_secondary -->
+</div>
+<!-- /.coinflip_top -->
+<div class="coinflip_row" id="coinflip_mygames">
+</div>
+<!-- /.coinflip_row -->
+<div class="coinflip_sort">
+   <h3>Open games <span id="coinflip_count_all">0</span></h3>
+   <div class="coinflip_sort_side">
+      <div class="coinflip_sort_side_row">
+         <h3>Price</h3>
+         <div class="coinflip_sort_field">
+            <span>Min</span>
+            <input type="text" id="cf_min">
+         </div>
+         <!-- /.coinflip_sort_field -->
+         <div class="coinflip_sort_field">
+            <span>Max</span>
+            <input type="text" id="cf_max">
+         </div>
+         <!-- /.coinflip_sort_field -->
+      </div>
+      <!-- /.coinflip_sort_side_row -->
+      <div class="coinflip_sort_side_row">
+         <h3>Show games</h3>
+         <div class="default_select show_games_select">
+            <select id="cf_showcount">
+               <option data-display="50" value="50">50</option>
+               <option value="15">15</option>
+               <option value="30">30</option>
+               <option value="50">50</option>
+               <option value="70">70</option>
+               <option value="99">99</option>
+               <option value="9999">All</option>
+            </select>
+         </div>
+         <!-- /.default_select -->
+      </div>
+      <!-- /.coinflip_sort_side_row -->
+      <div class="coinflip_sort_side_row">
+         <h3>Sort</h3>
+         <button type="button" name="button" sort="high" class="coinflip_sort_click">Highest amount first</button>
+      </div>
+      <!-- /.coinflip_sort_side_row -->
+   </div>
+   <!-- /.coinflip_sort_side -->
+</div>
+<!-- /.coinflip_sort -->
+<div class="coinflip_row" id="coinflip_allgames">
+</div>
+<!-- /.coinflip_row -->
+</div>`;
+
+$(document).on('click', '.coinflip_sort_click', function() {
+
+    var sort = $(this).attr('sort');
+    if(sort == 'high') {
+        $(this).html('Lowest amount first');
+        $(this).attr('sort', 'low');
+    } else {
+        $(this).html('Highest amount first');
+        $(this).attr('sort', 'high');
+    }
+
+    try {
+       $('#coinflip_allgames > .coinflip_unit').tsort({
+          attr:'data-amount',
+         order: ($('.coinflip_sort_click').attr('sort') == 'high' ? 'desc' : 'asc')
+       });
+    } catch (a) {}
+
+});
+
+$(document).on('change', '#cf_showcount', function() {
+    calculate_coinflip();
+})
+
+$(document).on('keyup', '#cf_min', function() {
+    calculate_coinflip();
+})
+
+$(document).on('keyup', '#cf_max', function() {
+    calculate_coinflip();
+})
+
+
+function calculate_coinflip() {
+
+
+    $('#coinflip_count_my').html($('#coinflip_mygames > .coinflip_unit').length);
+    $('#coinflip_count_all').html($('#coinflip_allgames > .coinflip_unit').length);
+
+    var min = parseInt($('#cf_min').val());
+    var max = parseInt($('#cf_max').val());
+
+    var c = 0;
+    $('#coinflip_allgames > .coinflip_unit').each(function() {
+        if(c > $('#cf_showcount').val()) $(this).hide();
+        else {
+            if(!(min == 0 && max == 0)) {
+
+                var amount = $(this).data('amount');
+                if(amount < min || amount > max) {
+                    $(this).hide();
+                } else $(this).show();
+
+            } else {
+                $(this).show();
+            }
+        }
+        c++;
+    });
+}
+
+function coinflip_connect() {
+    $.ajax({
+        url : '/scripts/coinflip/games',
+        type : 'get',
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+                
+                for(var i = 0; i < data.games.length; i++) {
+                    var game = data.games[i];
+                    add_coinflip(game);
+                }
+
+            } else {
+                chat('error', data.error);
+            }
+        },
+        error : err => {
+            console.log('New error');
+            console.log(err.responseText);
+        }
+    });
+
+}
+
+$(document).on("click", ".button_amount_cf", function() {
+    var t = parseInt($('#coinflip_amount').val()) || 0;
+    var a = $(this).attr("action");
+    if ("clear" == a)
+        t = 0;
+    else if ("double" == a)
+        t *= 2;
+    else if ("half" == a)
+        t /= 2;
+    else if ("max" == a) {
+        var e = MAX_BET;
+        t = Math.min(parseInt($("#balance_p").html()), e);
+    } else
+        "last" == a ? t = 0 : t += parseInt(a);
+    $("#coinflip_amount").val(parseInt(t) || 0)
+});
+
+var COIN_2 = '<div class="flip">'
+COIN_2 += '<div class="coinflip-coin-container" style="animation-name: coinflip-move-2-4;">';
+COIN_2 += '<div class="coinflip-coin-gif" style="animation-name: coinflip-rotate-5; background-image: url(\'/images/coinflip/aa.png\');">';
+COIN_2 += '<div class="coinflip-sprite-container">'
+COIN_2 += '<div class="coinflip-sprite" style="background-image: url(\'/images/coinflip/aa.png\');"></div>';
+COIN_2 += '</div>';
+COIN_2 += '</div>';
+COIN_2 += '</div>';
+COIN_2 += '</div>';
+
+var COIN_1 = '<div class="flip">'
+COIN_1 += '<div class="coinflip-coin-container" style="animation-name: coinflip-move-2-4;">';
+COIN_1 += '<div class="coinflip-coin-gif" style="animation-name: coinflip-rotate-5; background-image: url(\'/images/coinflip/bb.png\');">';
+COIN_1 += '<div class="coinflip-sprite-container">'
+COIN_1 += '<div class="coinflip-sprite" style="background-image: url(\'/images/coinflip/bb.png\');"></div>';
+COIN_1 += '</div>';
+COIN_1 += '</div>';
+COIN_1 += '</div>';
+COIN_1 += '</div>';
+
+var coinflip_tmp = '<div class="coinflip_unit" data-amount="{3}" id="cf{7}">';
+
+coinflip_tmp += '<div class="coinflip_user side_0{0}">';
+coinflip_tmp += '<div class="coinflip_user_pic"><img src="{1}" alt="{2}" width="80px" height="80px"></div>';
+coinflip_tmp += '<h3>{2}</h3>'; 
+coinflip_tmp += '<div class="coinflip_cash {11}" id="side{0}">{12}<span>{3}</span></div>';
+coinflip_tmp += '</div>';
+
+coinflip_tmp += '<div class="coinflip_user side_0{4}">';
+coinflip_tmp += '<div class="coinflip_user_pic"><img src="{5}" class="opponent_avatar" alt="{6}" width="80px" height="80px"></div>';
+
+coinflip_tmp += '<div class="coinflip_waiting">';
+coinflip_tmp += '<h3 class="opponent_name">{6}</h3>';
+coinflip_tmp += '<button type="button" name="button" class="coinflip_waiting_cancel" cf_id="{7}">Cancel</button>';
+coinflip_tmp += '<a href="#" class="coinflip_waiting_call" cf_id="{7}">Call a bot</a>';
+coinflip_tmp += '</div>';
+
+coinflip_tmp += '</div>';
+
+coinflip_tmp += '<span class="coinflip_unit_counter">VS</span>';
+coinflip_tmp += '<span class="coinflip_unit_provably" public="{8}" private="{9}" gid="{7}" eos="{10}">Provably fair</span>';
+coinflip_tmp += '</div>';
+
+var opponent_tmp = '<h3>{0}</h3>'; 
+opponent_tmp += '<div class="coinflip_cash {3}" id="side{2}">{4}<span class="amount">{1}</span></div>';
+
+var opponent_avatar_tmp = '<img src="{0}" class="opponent_avatar" alt="{1}" width="80px" height="80px">';
+  
+
+var join_tmp = '<div class="coinflip_waiting">';
+join_tmp += '<h3>Waiting...</h3>';
+join_tmp += '<button type="button" name="button" class="coinflip_waiting_join" cf_id="{0}"">Join game</button>';
+join_tmp += '</div>';
+
+var dismiss_tmp = '<div class="dismiss"><button class="dismiss-button" cf_id="{0}"> Dismiss </button></div>';
+
+$(document).on('click', '.side_item', function() {
+$('.side_item').removeClass('current');
+$(this).addClass('current');
+})
+
+function add_coinflip(data) {
+
+if(getCookie("settings_dongers") == 'true') { 
+    data.amount = parseFloat((data.amount / 1000).toFixed(4));
+}
+
+if(data.creator_avatar.includes('http')) {
+    var creator_avatar = data.creator_avatar
+} else {
+     var creator_avatar = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + data.creator_avatar;
+}
+
+var opponent_side = data.creator_side == 1 ? 2 : 1;
+
+if(data.opponent_avatar) {
+
+    if(data.opponent_avatar.includes('http')) {
+        var opponent_avatar = data.creator_avatar
+    } else {
+         var opponent_avatar = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + data.opponent_avatar;
+    }
+    
+} else {
+     var opponent_avatar = '/images/coinflip/default_userpic.png';
+}
+
+var opponent_name = data.opponent_name ? data.opponent_name : 'WAITING..';
+
+var public = data.seed_public;
+var private = data.seed_private ? data.seed_private : 'hidden';
+var eos = data.eos_block ? data.eos_block : 'waiting for opponent..';
+//console.log(eos)
+
+data.creator_name = data.creator_name.substr(0, 20);
+opponent_name = opponent_name.substr(0, 20);
+
+if(getCookie("settings_hideusers") == 'true') {
+
+    data.creator_name = data.creator_name.substr(0, 2) + '*';
+    opponent_name = opponent_name.substring(0,2) + '*';
+    opponent_avatar = '/images/chat/server.png';
+        creator_avatar = '/images/chat/server.png';
+
+}
+
+var coin_class = 'neutral';
+var plg_class = '';
+if(data.bet_type == 2) {
+    coin_class = 'neutral_plg';
+    plg_class = '<span class="plg_coinflip"></span>';
+}
+
+var cf = coinflip_tmp.format(data.creator_side, creator_avatar, data.creator_name, data.amount, opponent_side, opponent_avatar, opponent_name, data.id, public, private, eos, coin_class, plg_class);
+cf = $(cf);
+var join = join_tmp.format(data.id);
+
+
+if(data.creator_uid == USER) {
+    if(!data.socket) $(cf).appendTo($('#coinflip_mygames'));
+    calculate_coinflip();
+} else {
+
+    cf.find('.coinflip_waiting').replaceWith($(join));
+    var sort = $('.coinflip_sort_click').attr('sort');
+    var insert = 0;
+    
+
+        $('#coinflip_allgames').find('.coinflip_unit').each(function() {
+            var amount = parseInt($(this).attr('data-amount'));
+            data.amount = parseInt(data.amount);
+            if(sort == 'low') {
+                if(data.amount <= amount) {
+                    $(cf).insertBefore($(this));
+                    insert = 1;
+                }
+            } else {
+                if(data.amount >= amount) {
+                    $(cf).insertBefore($(this));
+                    insert = 1;
+                }
+            }
+        });
+
+        if(insert == 0) {
+            $(cf).appendTo($('#coinflip_allgames'));  
+
+        }
+    
+     
+    calculate_coinflip();
+
+}
+
+if(data.instant) play_coinflip(data, 5);
+}
+
+function delete_coinflip(id) {
+$('#cf' + id).remove();
+}
+
+
+function play_coinflip(data, i) {
+
+
+if(getCookie("settings_dongers") == 'true' && i == 5) { 
+    data.win = parseFloat((parseFloat(data.win) / 1000).toFixed(4));
+    //console.log('DATAWIN', data.win)
+    data.amount = parseFloat((data.amount / 1000).toFixed(4));
+}
+
+if((data.opponent_uid == USER) && data.socket == true) return;
+
+    
+    if(data.opponent_avatar.includes('http')) {
+        var av = data.opponent_avatar
+    } else {
+         var av = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + data.opponent_avatar;
+    }
+
+
+    if(getCookie("settings_hideusers") == 'true') {
+
+        data.opponent_name = data.opponent_name.substring(0,2) + '*';
+        av = '/images/chat/server.png';
+
+    }
+
+
+var opponent_avatar = opponent_avatar_tmp.format(av, data.opponent_name);
+
+var coin_class = 'neutral';
+var plg_class = '';
+var win_class = 'winner';
+var lose_class = 'loser';
+if(data.bet_type == 2) {
+    coin_class = 'neutral_plg';
+    plg_class = '<span class="plg_coinflip"></span>';
+    win_class = 'winner_plg';
+    lose_class = 'loser_plg';
+}
+
+var opponent = opponent_tmp.format(data.opponent_name, data.amount, data.creator_side == 1 ? 2 : 1, coin_class, plg_class);
+$('#cf' + data.id).find('.opponent_avatar').replaceWith($(opponent_avatar))
+$('#cf' + data.id).find('.coinflip_waiting').replaceWith($(opponent));
+
+$('#cf' + data.id).find('.coinflip_unit_provably').attr('eos', data.eos_block);
+$('#cf_pf_eos[gid="' + data.id +'"]').html(data.eos_block);
+$('#cf_pf_eos[gid="' + data.id +'"]').attr('num', data.eos_block);
+
+if(i > 0 && !data.instant) {
+
+    $('#cf' + data.id).find('.coinflip_unit_counter').html(i);
+        i--;
+        setTimeout(function() {
+            play_coinflip(data, i);
+        }, 1000)
+
+    } else {
+
+
+        var coin = data.result == 1 ? COIN_1 : COIN_2;
+        $('#cf' + data.id).find('.coinflip_unit_counter').replaceWith($(coin));
+        setTimeout(function() {
+            var win = data.result;
+            var lose = win == 1 ? 2 : 1;
+
+            $('#cf' + data.id).find('#side' + win).removeClass('neutral').removeClass('neutral_plg').addClass(win_class).append('<h3>winner</h3>');
+            $('#cf' + data.id).find('#side' + win).find('span.amount').html(data.win);
+            $('#cf' + data.id).find('#side' + lose).removeClass('neutral').removeClass('neutral_plg').addClass(lose_class).append('<h3>loser</h3>');
+
+            $('#cf' + data.id).find('.coinflip_unit_provably').attr('private', data.seed_private);
+            $('#cf' + data.id).find('.coinflip_unit_provably').addClass('cf_pf')
+            $('#cf_pf_private[gid="' + data.id +'"]').html(data.seed_private);
+            //$('#cf' + data.id).addClass('game_end_a');
+
+       
+            if(data.creator_uid == USER) {
+                
+                var ds = dismiss_tmp.format(data.id);
+                $('#cf' + data.id).append($(ds));
+            } else {
+                setTimeout(function() {
+                    $('#coinflip_allgames').find($('#cf' + data.id)).remove();
+                   calculate_coinflip();
+                }, 5000)
+            }
+
+            if((data.creator_uid == USER || data.opponent_uid == USER) && !data.instant) send('balance', {cf: 1});
+
+        }, 1970)
+       
+
+    }
+}
+
+$(document).on('click', '.coinflip_unit_provably', function() {
+var public = $(this).attr('public');
+var private = $(this).attr('private');
+var gid = $(this).attr('gid');
+var eos = $(this).attr('eos');
+
+$('#cf_pf_id').attr('gid', gid);
+$('#cf_pf_id').html(gid);
+
+$('#cf_pf_public').attr('gid', gid);
+$('#cf_pf_public').html(public);
+
+$('#cf_pf_private').attr('gid', gid);
+$('#cf_pf_private').html(private);
+
+$('#cf_pf_eos').attr('gid', gid)
+$('#cf_pf_eos').attr('num', eos);
+$('#cf_pf_eos').html(eos);
+
+modal('.cf_provably', true);
+})
+
+$(document).on('click', '.dismiss-button', function() {
+var id = $(this).attr('cf_id');
+$(this).prop('disabled', true);
+$.ajax({
+    url : '/scripts/coinflip/dismiss',
+    type : 'post',
+    data : {
+        id: id
+    },
+    success : data => {
+        data = JSON.parse(data);
+        if(data.success) {
+            $(this).prop('disabled', false);
+            delete_coinflip(data.id);
+        } else {
+            chat('error', data.error);
+            $(this).prop('disabled', false);
+        }
+    },
+    error : err => {
+        $(this).prop('disabled', false);
+        console.log('New error');
+        console.log(err.responseText);
+    }
+});
+});
+
+$(document).on('click', '.coinflip_waiting_join', function() {
+var id = $(this).attr('cf_id');
+$(this).prop('disabled', true);
+var secret = game_secret_p;
+$.ajax({
+    url : '/scripts/coinflip/join',
+    type : 'post',
+    data : {
+        id: id,
+        secret,
+        balance_type: balance_type
+    },
+    success : data => {
+        data = JSON.parse(data);
+        if(data.success) {
+            $(this).prop('disabled', false);
+            play_coinflip(data, 5);
+        } else {
+            chat('error', data.error);
+            $(this).prop('disabled', false);
+        }
+    },
+    error : err => {
+        $(this).prop('disabled', false);
+        console.log('New error');
+        console.log(err.responseText);
+    }
+});
+});
+
+$(document).on('click', '.coinflip_waiting_call', function() {
+var id = $(this).attr('cf_id');
+$(this).prop('disabled', true);
+var secret = game_secret_p;
+$.ajax({
+    url : '/scripts/coinflip/call_bot',
+    type : 'post',
+    data : {
+        id: id,
+        secret: secret
+    },
+    success : data => {
+        data = JSON.parse(data);
+        if(data.success) {
+            $(this).prop('disabled', false);
+            play_coinflip(data, 5);
+        } else {
+            chat('error', data.error);
+            $(this).prop('disabled', false);
+        }
+    },
+    error : err => {
+        $(this).prop('disabled', false);
+        console.log('New error');
+        console.log(err.responseText);
+    }
+});
+});
+
+$(document).on('click', '.coinflip_waiting_cancel', function() {
+var id = $(this).attr('cf_id');
+$(this).prop('disabled', true);
+$.ajax({
+    url : '/scripts/coinflip/cancel',
+    type : 'post',
+    data : {
+        id: id
+    },
+    success : data => {
+        data = JSON.parse(data);
+        if(data.success) {
+            $(this).prop('disabled', false);
+            delete_coinflip(data.id);
+        } else {
+            chat('error', data.error);
+            $(this).prop('disabled', false);
+        }
+    },
+    error : err => {
+        $(this).prop('disabled', false);
+        console.log('New error');
+        console.log(err.responseText);
+    }
+});
+});
+
+$(document).on('click', '#coinflip_create', function() {
+var side = $('.side_item.current').attr('side');
+if(getCookie("settings_dongers") == 'true') {
+    var amount = parseFloat($('#coinflip_amount').val());
+    amount = (amount * 1000);
+} else {
+    var amount = parseInt($('#coinflip_amount').val());
+}
+
+$('#coinflip_create').prop('disabled', true);
+var secret = game_secret_p;
+$.ajax({
+    url : '/scripts/coinflip/create',
+    type : 'post',
+    data : {
+        amount: amount,
+        side: side,
+        secret: secret,
+        balance_type: balance_type
+    },
+    success : data => {
+        data = JSON.parse(data);
+        if(data.success) {
+            $('#coinflip_create').prop('disabled', false);
+            add_coinflip(data);
+        } else {
+            chat('error', data.error);
+            $('#coinflip_create').prop('disabled', false);
+        }
+    },
+    error : err => {
+        $('#coinflip_create').prop('disabled', false);
+        console.log('New error');
+        console.log(err.responseText);
+    }
+});
+});
+
+function __SOCKET_EVENT_COINFLIP_CREATE(data) {
+add_coinflip(data);
+}
+
+function __SOCKET_EVENT_COINFLIP_JOIN(data) {
+
+play_coinflip(data, 5);
+}
+
+function __SOCKET_EVENT_COINFLIP_CANCEL(data) {
+delete_coinflip(data.id);
+}
+
+var crash_page = `<div class="crash_game_block select_right" id="select_crash" style="display: none">
+<div class="crash_game_top">
+   <div class="crash-game" style="position: relative">
+      <div style="position: absolute;width: 100%;height: 100%;display: flex;align-items: center;justify-content: center;font-size: 4em;">
+         <div class="crash-info" id="crash-info">Loading..</div>
+      </div>
+      <canvas id="canvas"></canvas>
+   </div>
+   <!-- /.crash-game -->
+   <div class="crash_bet">
+      <h1>CSGO Crash</h1>
+      <div class="crash_bet_details">
+         <div class="crash_bet_amount">
+            <span class="field_tip">Bet amount</span>
+            <input type="text" id="crash_amount" value="100">
+         </div>
+         <!-- /.crash_bet_amount -->
+         <div class="crash_bet_auto_cashout">
+            <span class="field_tip">Auto cashout</span>
+            <input type="text" id="crash_auto_cashout" value="3">
+            <div class="on_off">
+               <input type="checkbox" name="on_off" id="on_off" checked>
+               <label for="on_off">
+                  <div class="on_off_row">
+                     <span class="toggler_off">Off</span>
+                     <span class="toggler_on">On</span>
+                  </div>
+                  <!-- /.on_off_row -->
+               </label>
+               <div class="toggler"></div>
+            </div>
+            <!-- /.on_off -->
+         </div>
+         <!-- /.crash_bet_auto_cashout -->
+         <ul>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_c" action="10">+10</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_c" action="100">+100</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_c" action="1000">+1000</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline  button_amount_c" action="half">1 / 2</button>
+            </li>
+            <li>
+               <button type="button" name="button" class="gray_inline button_amount_c" action="double">x2</button>
+            </li>
+         </ul>
+         <div class="crash_bet_triggers">
+            <button type="button" name="button" class="blue_inline  button_amount_c" action="min">Min bet</button>
+            <button type="button" name="button" class="red_inline button_amount_c" action="max">Max bet</button>
+         </div>
+         <!-- /.crash_bet_triggers -->
+         <div style="width: 100%;display: flex;justify-content: center;align-items: center;position:relative;">
+            <button type="button" name="button" style="z-index:10;" class="place_bet crash-button-bet" bet_id="1">
+
+                <div style="position: relative;width: 100%;height: 100%;display: flex;justify-content: center;align-items: center;">
+                    <div style="position: absolute;" class="crash-bet-text" bet_id="1">Place bet #1</div>
+                    <div style="width: 100%;height: 100%;position: absolute;" class="crash-bet-click" bet_id="1"></div>
+                </div>
+
+            </button>
+         </div>
+
+         <div style="width: 100%;display: flex;justify-content: center;align-items: center;position:relative;">
+            <button type="button" name="button" style="z-index:10;" class="place_bet crash-button-bet" bet_id="2">
+
+                <div style="position: relative;width: 100%;height: 100%;display: flex;justify-content: center;align-items: center;">
+                    <div style="position: absolute;" class="crash-bet-text" bet_id="2">Place bet #2</div>
+                    <div style="width: 100%;height: 100%;position: absolute;" class="crash-bet-click"  bet_id="2"></div>
+                </div>
+
+            </button>
+         </div>
+
+      </div>
+      <!-- /.crash_bet_details -->
+   </div>
+   <!-- /.crash_bet -->
+</div>
+<!-- /.crash_game_top -->
+<div class="crash_game_history">
+   <div class="latest_games">
+      <h3>Latest Games
+         <span>History</span>
+      </h3>
+      <div class="latest_games_row">
+         <ul class="crash-history">
+         </ul>
+      </div>
+      <!-- /.latest_games_row -->
+   </div>
+   <!-- /.latest_games -->
+   <div class="probably_fair">
+      <h3>
+         <a href="${link_prefix}provably-fair/crash" target="_blank" style="color: unset;">
+            <h3>Provably fair</h3>
+         </a>
+      </h3>
+      <div class="probably_fair_row">
+         <h3>Game: #<span id="crash-game-id">0</span></h3>
+         <p>
+            Hash: <span id="crash-game-hash">0x000000000000000000000000000000000000000000000000000000</span>
+         </p>
+         <p>
+            ServerSeed: <span id="crash-game-seed"></span>
+         </p>
+      </div>
+      <!-- /.probably_fair_row -->
+   </div>
+   <!-- /.probably_fair -->
+</div>
+<!-- /.crash_game_history -->
+<div class="table_row crash-users">
+   <table class="responsive">
+      <tbody>
+         <tr class="crash_bets_table">
+            <th>Game</th>
+            <th>Coeff</th>
+            <th>Bet</th>
+            <th>Profit</th>
+         </tr>
+      </tbody>
+   </table>
+</div>
+<!-- /.table_row -->
+</div>`;
+
+
+
+
+var label = [];
+var x = [];
+var crash_timeout;
+var last_l = 0;
+
+
+
+
+
+function crash_slider(data) {
+
+    add_crash_data(data.l, data.x);
+
+    crash_timeout = setTimeout(() => {
+
+        if(connected == 1) crash_slider({
+            l: data.l + 1,
+            x: crash_x((data.l + 1) * 100)
+        });
+        //console.log('slider_helper')
+
+    }, 101)
+
+    var x = (data.x / 100).toFixed(2);
+
+    for(var i = 0; i < crash_bets.length; i++) {
+
+        if(crash_bets[i] !== undefined && crash_bets[i].active == true) {
+
+            var cashout = parseInt(crash_bets[i].amount * x);
+            var auto_cashout_info = crash_bets[i].auto_enabled == 1 ? ('x' + crash_bets[i].auto_cashout) : 'DISABLED';
+            $('.crash-bet-text[bet_id="'+i+'"]').html(crash_cashout_tmp.format(cashout, auto_cashout_info));
+
+        }
+
+    }
+
+}
+
+function __SOCKET_EVENT_CRASH_SLIDER(data) {
+
+    if(data.l > last_l) {
+
+        clearTimeout(crash_timeout);
+        crash_slider(data);
+
+    }
+
+}
+
+const resetPlot = () => {
+    if(window != undefined && window.myLine != undefined) {
+        last_l = 0;
+        clearTimeout(crash_timeout);
+        var l = [];
+        for(var m = 0; m < 100; m++) {
+            l.push(m);
+        }
+        window.myLine.data.labels = l;
+        window.myLine.data.datasets[0].data = [];
+        window.myLine.options.scales.yAxes[0].ticks.max = 2;
+        window.myLine.data.datasets[0].backgroundColor = gradientStroke;
+        window.myLine.data.datasets[0].borderColor = 'rgb(94, 183, 110)';
+        window.myLine.update();
+    }
+}
+
+
+const __SOCKET_EVENT_CRASH_TIMER = (data) => {
+
+    $('.crash-info').text('Next round in ' + data.value + ' s..');
+
+}
+
+function __SOCKET_EVENT_CRASH_CASHOUT(data) {
+
+    
+    $('[crashid=' + data.id + ']').addClass('crash-win')
+    $('[crashid=' + data.id + ']').attr('data-status', 1);
+    $('[crashid=' + data.id + ']').find($('span#crash_point')).text('x' + (data.point / 100));
+    $('[crashid=' + data.id + ']').find($('span#crash_profit')).text('+' + data.profit).addClass('win');
+
+    if(data.uid == USER) {
+
+        $('.crash-bet-click[bet_id="'+data.bet_id+'"]').prop('disabled', false);
+
+        if(crash_bets[data.bet_id] !== undefined) {
+
+            if(crash_bets[data.bet_id].active == true) {
+
+                delete crash_bets[data.bet_id];
+                $('.crash-bet-text[bet_id="'+data.bet_id+'"]').html(LNG.CRASH_PLACE_BET + ' #' + data.bet_id);
+
+
+            }
+
+        }
+
+    }
+
+}    
+
+function add_crash_data(l, x) {
+    if(l > 100) window.myLine.data.labels.push(l);
+    window.myLine.data.datasets[0].data.push((x / 100).toFixed(2));
+    window.myLine.options.scales.yAxes[0].ticks.max = Math.max.apply(2, window.myLine.data.datasets[0].data) + 0.5;
+    $('.crash-info').text('x' + (x / 100).toFixed(2));
+
+    $('.crash-info').css({
+        'transition': 'color 200ms ease',
+        'color': getColors(x)
+    });
+
+    window.myLine.update();
+}
+
+var _colors = {
+    one: '#a6caf0',
+    two: '#afdafc',
+    three: '#ccccff',
+    four: '#dcd0ff',
+    five: '#eebef1',
+    red: '#aa3737',
+    text: '#ffc645'
+}
+
+const getColors = function(n) {
+    if(n > 649) return _colors.five;
+    if(n > 499) return _colors.four;
+    if(n > 299) return _colors.three;
+    if(n > 199) return _colors.two;
+    return _colors.one;
+}
+
+function crash_x(o) {
+    var r = 0.00006;
+    return Math.floor(100 * Math.pow(Math.E, r * o));
+}
+
+
+function crash_canvas_init() {
+    var ctx = document.getElementById('canvas').getContext('2d');
+    gradientStroke = ctx.createLinearGradient(0, 0, 800, 500);
+    gradientStroke.addColorStop(0, 'rgb(94, 183, 110, .4)');
+    gradientStroke.addColorStop(1, 'rgb(94, 183, 110, 0)');
+    gradientStrokeLose = ctx.createLinearGradient(0, 0, 800, 500);
+    gradientStrokeLose.addColorStop(0, 'rgb(252, 25, 28, .4)');
+    gradientStrokeLose.addColorStop(1, 'rgb(234, 47, 43, 0)');    
+    Chart.defaults.global.defaultFontFamily = "DIN Pro";
+    Chart.defaults.global.defaultFontSize = "13";
+    Chart.defaults.global.defaultFontColor = "#909092";
+
+    var l = [];
+
+    for(var m = 0; m < 100; m++) {
+        l.push(m);
+    }
+
+    var config = {
+        type: 'line',
+        data: {
+            labels: l,
+            datasets: [{
+                borderDash: [10],
+                borderWidth: [4],
+                pointBackgroundColor: 'rgba(0, 0, 0, 0)',
+                pointColor: 'rgba(0, 0, 0, 0)',
+                pointRadius: 0,
+                pointBorderWidth: 0,
+                borderColor: 'rgb(94, 183, 110)',
+                backgroundColor: gradientStroke,
+                data: [0]
+            }]
+        },
+        options: {
+            tooltips: {
+                enabled: false
+            },
+            legend: {
+                display: false
+            },
+            scales: {
+                xAxes: [{
+                    display: false,
+                    scaleLabel: {
+                        display: true
+                    },
+                    gridLines: {
+                        display: false,
+                    },
+                    ticks: {
+                        min: 1,
+                        stepSize: 1,
+                        display: true,
+                    }
+                }],
+                yAxes: [{
+                    display: true,
+                    scaleLabel: {
+                        display: true
+                    },
+                    ticks: {
+                        beginAtZero: true,
+                        min: 1,
+                        max: 2,
+
+                    }
+                }]
+            }
+        }
+    };
+    window.myLine = new Chart(ctx, config);
+}
+
+
+var crash_active_bet = false;
+var crash_bet_next_round = false;
+
+
+
+
+var crash_bet_tmp = '<tr crashid="{3}" class="crash-user crash_user_tr {15}" data-amount="{2}" data-status="0">';
+crash_bet_tmp += '<td><span data-type="responsive">Game</span><a href="{4}" target="_blank" class="table_user"><i class="userpic userpic_inner {9}"><span class="{16}"><img src="{0}" alt="{1}" class="contextmenu" steamid="{5}" uid="{6}" name="{1}""></span></i><span {7}>{8}</span></a></td>';
+crash_bet_tmp += '<td><span data-type="responsive">Coeff</span><span id="crash_point">{12}</span></td>';
+crash_bet_tmp += '<td style="position: relative;"><span data-type="responsive">Bet</span><span class="crash_amount_span">{10}<span style="{11}">{2}</span></span></span></td>';
+
+crash_bet_tmp += '<td><span data-type="responsive">Profit</span><span id="crash_profit" class="profit {14}">{13}</span></td>';
+crash_bet_tmp += '</tr>';
+
+var crash_plg = '<i class="plg_table" style=""></i>';
+
+function add_crash_bet(data, sort) {
+
+    var user = data.user;
+    if(user.avatar.includes('http')) {
+        var avatar = user.avatar
+    } else {
+         var avatar = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars' + user.avatar;
+    }
+    var link = '#';
+    if(data.steamid != 0) link = 'https://steamcommunity.com/profiles/' + user.steamid;
+    var username = user.username.substr(0, 20);
+
+    if (user.prefix != undefined && user.prefix != '') {
+        var p_color = '';
+        if(user.prefix_color != '') p_color = 'style="color: ' + user.prefix_color + ';margin-right:3px"';
+        user.username = prefix_tmp.format(user.prefix, p_color) + ' ' + user.username;
+    }
+
+    if(getCookie("settings_hideusers") == 'true') {
+
+        username = username.substring(0,2) + '*'
+        avatar = '/images/chat/server.png';
+
+    }
+
+    var n_color = '';
+    if(user.name_color != undefined && user.name_color != '') n_color = 'style="color: ' + user.name_color + '"';
+    if(user.link != undefined && user.link != '') user = data.link;
+
+    var i_c = '';
+    if(user.img_class != '') {
+        i_c = user.img_class;
+    }
+    
+    var g_c = '';
+    if(user.gift_class != undefined && user.gift_class != '') {
+        g_c = user.gift_class;
+    }
+
+    var plg_bet = '';
+    var b_style = '';
+    if(data.bet_type == 2) {
+        plg_bet = crash_plg;
+        b_style = 'color:#E164AF;';
+    }
+
+    var point = '-';
+    var profit = '-';
+    var profit_class = '';
+    var table_class = '';
+
+    if(data.status == 'win') {
+
+        point = 'x' + (data.x / 100).toFixed(2);
+        profit = '+' + data.profit;
+        profit_class = 'win';
+        table_class = 'crash-win';
+
+    } else if(data.status == 'lose') {
+
+        profit = '-' + data.amount;
+        profit_class = 'lose';
+    }
+
+    var crash_bet = crash_bet_tmp.format(avatar, username, data.amount, data.id, link, user.steamid, user.id, n_color, user.username, i_c, plg_bet, b_style, point, profit, profit_class, table_class, g_c);
+    crash_bet = $(crash_bet);
+
+    $('.crash_bets_table').after($(crash_bet));
+    
+    if(sort == true) {
+        try { tinysort('.crash_user_tr',     {'data': 'amount', 'order': 'desc'}); } catch (a) { }
+    }
+    
+
+}
+
+
+
+$(document).on('click', '.crash-history  li', function() {
+    var hash = $(this).attr('data-hash');
+    var id = $(this).attr('data-id');
+    var seed = $(this).attr('data-seed');
+    
+    $('.crash_provably').find('#crash_pf_id').html(id);
+    $('.crash_provably').find('#crash_pf_hash').html(hash);
+    $('.crash_provably').find('#crash_pf_private').html(seed);
+    
+    modal('.crash_provably');
+    
+});
+
+
+var bets_page = `<div class="betting_sport select_right" style="display: none;color:#B9B9B9">
+    <div id="select_betting_sport">
+        <div style="color:white; margin: 15px;">Loading..</div>
+    </div>
+    <div style="display: flex;justify-content: center;margin-top: 15px;color:#B9B9B9">
+        <h1>CSGO Betting</h1>
+    </div>
+</div>`;
+
+
+
+function load_betting() {
+    if(typeof BTRenderer !== 'undefined' && BTRenderer !== null) {
+        var evt = document.createEvent('Event');  
+        evt.initEvent('load_betting', false, false);  
+        window.dispatchEvent(evt);
+    } else {
+        setTimeout(function() {
+            load_betting()
+        }, 250);
+    }
+}
+
+var first_load = false;
+function get_betting() {
+
+    if(balance_changed == true) {
+        alerts.confirm('Your balance type was changed. Please reload the page to launch sport betting.', function(r) {
+            
+            if(r) {
+                
+                window.location.reload();
+
+            }
+            
+        }, 'warn', 'warn', true); 
+        return;
+    }
+
+    window.history.pushState(null, null, "?bt-path=/109");
+    $.ajax({
+        url : 'scripts/bets/init',
+        type : 'post',
+        data: {
+          balance_type: balance_type  
+        },
+        success : data => {
+
+            if(first_load == false) {
+
+                if(MODE != 'bets') return;
+
+                if(data == 'false') return alerts.notify('Error', 'Error', 'error', true);
+
+                data = '<div>' + data + '</div>';
+                $('#select_betting_sport').html('');
+                $('#select_betting_sport').append($(data));
+                first_load = true;
+                load_betting();
+
+            } else {
+                load_betting();                
+            }
+
+                
+        },
+        error : err => {
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        }
+    });
+
+}
+
+var tournament_my_tmp = '<li class="selected team_bet" team_data=\'{5}\'>';
+    tournament_my_tmp += '<div class="tournament_team_pic"><img src="/img/teams/{0}" alt="{2}" width="115px" height="117px"></div>';
+    tournament_my_tmp += '<span class="tournament_coefficient">x{1}</span>';
+    tournament_my_tmp += '<h3>{2}</h3>';
+    tournament_my_tmp += '<div class="tournament_bet_info">';
+    tournament_my_tmp += '<span>{3}</span>';
+    tournament_my_tmp += '<span> ({4})</span>';
+    tournament_my_tmp += '</div>';
+    tournament_my_tmp += '<span class="your_choice">Your choice</span>';
+    tournament_my_tmp += '</li>';
+
+
+var tournament_tmp = '<li class="team_bet" team_data=\'{3}\'>';
+    tournament_tmp += '<div class="tournament_team_pic"><img src="/img/teams/{0}" alt="{2}" width="120px" ></div>';
+    tournament_tmp += '<span class="tournament_coefficient">x{1}</span>';
+    tournament_tmp += '<h3>{2}</h3>';
+    tournament_tmp += '<span class="tournament_bet">Bet</span>';
+    tournament_tmp += '</li>';
+
+var tournament_bets_page = `<div class="tournament <?=$t_class?> select_right" id="select_tournament" style="display: none">
+   <div class="tournament_banner" style="background-size: cover;display: flex;align-items: center;">
+      <div class="tournament_title" style="margin: 20px 0 0 0; width: 100%; text-align: center;">
+         <h5>Oct 31 - Nov 13</h5>
+         <h3 style="color: white">IEM RIO Major 2022</h3>
+         <h4>Place bets on the winner of tournament</h4>
+      </div>
+   
+   </div>
+   <div class="tournament_teams">
+      <ul>
+      </ul>
+   </div>
+   <p class="note">
+      Bets will be closed with the start of the first tournament events, change your selection will not be possible. If your team loses, you lose your winnings.
+      If your team wins the final of the tournament, your prize is multiplied by the coefficient of the team. The coefficient changes depending on the choice of most users.
+   </p>
+</div>`;
+
+$(document).on('click', '.bet_team_button', function() {
+
+    var team_id = $(this).attr('teamid');
+    var tournament_id = $(this).attr('tournamentid');
+    var amount = parseInt($('.bet_team_amount').val());
+
+    $.ajax({
+        url : '/scripts/tournament/bet',
+        type : 'post',
+        data: {
+            team_id: team_id,
+            tournament_id: tournament_id,
+            amount: amount,
+            balance_type: balance_type
+        },
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+
+                updateBalance(data.balance, data.btime, false);
+                closeWindows();
+                tournament_connect();
+
+            } else {
+                alerts.notify(data.error, 'Error', 'error', true);
+            }
+        }, 
+        error : err => {
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        }
+    });
+
+});
+
+
+function tournament_connect() {
+
+    $('.tournament_teams > ul').html('');
+    $.ajax({
+        url : '/scripts/tournament/get',
+        type : 'get',
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+                
+                for(team of data.teams) {
+
+                    if(team.mybet != false) {
+
+                        var t_team = tournament_my_tmp.format(team.img, team.coeff, team.name, team.mybet.amount, team.mybet.win, JSON.stringify(team));
+                        
+                        $('.tournament_teams > ul').append($(t_team));
+
+                    } else {
+
+                        var t_team = tournament_tmp.format(team.img, team.coeff, team.name, JSON.stringify(team));
+                        
+                        $('.tournament_teams > ul').append($(t_team));
+
+                    }   
+
+                }
+
+            } else {
+        
+                chat('error', data.error);
+
+            }
+        },
+        error : err => {
+            console.log(err.responseText);
+        }
+    });
+
+}
+
+
+$(document).on('click', '.team_bet', function() {
+
+    var team_data = JSON.parse($(this).attr('team_data'));
+    $('.bet_team_img').attr('src', '/img/teams/' + team_data.img);
+    $('.bet_team_name').text(team_data.name);
+    $('.bet_team_button').attr('teamid', team_data.id);
+    $('.bet_team_button').attr('tournamentid', team_data.tournament_id);
+
+    modal('.tournament_window');
+
+});
+
+
+var crash_bets = [];
+
+function crashBetProccess(amount, bet_id, auto_cashout, auto_enabled, b_type, auto_bet, callback) {
+
+    if(connected == 1) {
+
+        if(auto_enabled == 0) auto_cashout = 0;
+
+        var url = '/scripts/crash/bet';
+        if(b_type == 2) url = '/scripts/crash/bet_plg';
+
+        $.ajax({
+            url : url,
+            type : 'POST',
+            data : {
+                amount: amount,
+                auto: auto_cashout * 100,
+                balance_type: b_type,
+                bet_id: bet_id,
+                auto_bet: auto_bet
+            },
+            success : data => {
+
+                data = JSON.parse(data);
+
+                try {
+
+                
+                    if(data.success || (!data.success && data.next_bet)) {
+
+                        callback(null, data, bet_id); 
+
+                    } else {
+
+                        callback('bet_request_error', null, bet_id);
+                        alerts.notify(data.error, 'Error', 'error', true);
+
+                    }
+
+                } catch(err) {
+
+                    console.log('ERR', err);
+
+                    if(data.includes('get_jhash')) {
+
+                        alerts.notify(LNG.ERROR_RELOAD, 'Error', 'error', true, function() {
+                                
+                            window.location.reload();
+                            
+                        });
+
+                    } else {
+
+                        alerts.notify(err.message, 'Error', 'error', true);
+
+                    }
+
+                    delete crash_bets[bet_id];
+
+                    callback('bet_catch_error', null, bet_id);
+                   
+                }
+            }, 
+            error : err => {
+
+                callback('bet_ajax_error', null, bet_id)
+                alerts.notify(err.responseText, 'Error', 'error', true);
+            }
+        });
+
+    } else callback('not_connected', null, bet_id);
+
+}
+
+
+function crashBet(amount, bet_id, auto_cashout, auto_enabled, b_type, callback) {
+
+
+    if($("#settings_confirm").is(":checked") && amount > 10000) {
+
+        alerts.confirm(LNG.YOU_SURE_BET + formatNum(amount) + LNG.WARNING_BET, function(result) {
+
+            if(result) {
+
+                crashBetProccess(amount, bet_id, auto_cashout, auto_enabled, b_type, 0, callback);
+
+            } else callback('bet_canceled', null, bet_id);
+
+        });
+
+    } else {
+
+        crashBetProccess(amount, bet_id, auto_cashout, auto_enabled, b_type, 0, callback);
+
+    }
+
+}
+
+
+function crashBetCallback(error, result, bet_id) {
+
+    var _button = $('.crash-bet-click[bet_id="'+bet_id+'"]');
+    var _text = $('.crash-bet-text[bet_id="'+bet_id+'"]');
+
+    if(error !== null) {
+
+        _button.prop('disabled', false);
+        _text.text(LNG.CRASH_PLACE_BET + ' #' + bet_id);
+        return;
+
+    }
+
+    if(result.success == true) {
+
+        updateBalance(result.balance, false, false, result.cashback);
+
+        crash_bets[result.bet_id] = {
+            active: true,
+            next_bet: false,
+            amount: result.amount,
+            auto_enabled: result.auto_enabled,
+            auto_cashout: result.auto_cashout
+        };
+
+        chat('alert', LNG.BET + result.id + LNG.CONFIRMED);
+
+        var auto_cashout_info = result.auto_enabled == 1 ? ('x' + result.auto_cashout) : 'DISABLED';
+        _button.prop('disabled', false);
+        _text.html(crash_bet_placed_tmp.format(result.amount, auto_cashout_info));
+
+    } else if(result.next_bet) {
+
+        crash_bets[result.bet_id] = {
+            active: false,
+            next_bet: true,
+            balance_type: result.balance_type,
+            amount: result.amount,
+            auto_enabled: result.auto_enabled,
+            auto_cashout: result.auto_cashout
+        };                
+
+
+        var auto_cashout_info = result.auto_enabled == 1 ? ('x' + result.auto_cashout) : 'DISABLED';
+        var plg = result.balance_type == 2 ? ' PLG' : '';
+        _button.prop('disabled', false);
+        _text.html(crash_bet_next_tmp.format(result.amount + plg, auto_cashout_info));
+
+    }
+
+}
+
+
+
+$(document).on('click', '.crash-bet-click', function(event) {
+   
+    var bet_id = $(this).attr('bet_id');
+
+    var _button = $(this);
+    var _text = $('.crash-bet-text[bet_id="'+bet_id+'"]');
+    _button.prop('disabled', true);
+    _text.text('...');
+
+    if(crash_bets[bet_id] === undefined) {
+
+        var amount = parseInt($('#crash_amount').val()) || 0;
+        var auto_cashout = parseFloat($('#crash_auto_cashout').val().replace(',', '.'));
+        var auto_enabled = $('.on_off').hasClass('toggled') ? 0 : 1;
+        var b_type = balance_type;
+
+
+        crashBet(amount, bet_id, auto_cashout, auto_enabled, b_type, function(error, result, bet_id) {
+
+            crashBetCallback(error, result, bet_id);
+
+        });
+
+
+    } else if(crash_bets[bet_id].next_bet == true) {
+
+        delete crash_bets[bet_id];
+        _button.prop('disabled', false);
+        _text.html(LNG.CRASH_PLACE_BET + ' #' + bet_id);
+
+    } else if(crash_bets[bet_id].active == true) {
+
+        _button.prop('disabled', false);
+        _text.html('...');
+        send('crash_cashout', {
+            bet_id: bet_id
+        });
+
+    }
+    
+}); 
+
+const __SOCKET_EVENT_CRASH_NEW = (data) => {
+
+
+    $('#crash-game-id').text(data.id);
+    $('#crash-game-hash').text(data.hash);
+    $('#crash-game-seed').text('hidden');
+    $('.crash_user_tr').remove();
+
+    for(var i = 0; i < crash_bets.length; i++) {
+
+        if(crash_bets[i] !== undefined) {
+
+            if(crash_bets[i].active == false && crash_bets[i].next_bet == true) {
+
+                var _button = $('.crash-bet-click[bet_id="'+i+'"]');
+                var _text = $('.crash-bet-text[bet_id="'+i+'"]');
+
+                _button.prop('disabled', true);
+                _text.text('...');
+
+                crashBetProccess(crash_bets[i].amount, i, crash_bets[i].auto_cashout, crash_bets[i].auto_enabled, crash_bets[i].balance_type, 1, function(error, result, bet_id) {
+
+                    crashBetCallback(error, result, bet_id);
+
+                });
+
+
+            }
+
+        }
+
+    }
+
+    $('.crash-info').css('color', '#c1c1c1').text('Loading..');
+    resetPlot();
+
+}
+
+function __SOCKET_EVENT_CRASH_END(data) {
+
+    clearTimeout(crash_timeout);
+
+    for(var i = 0; i < crash_bets.length; i++) {
+
+        if(crash_bets[i] !== undefined && crash_bets[i].active == true) {
+
+            delete crash_bets[i];
+            $('.crash-bet-text[bet_id="'+i+'"]').html(LNG.CRASH_PLACE_BET + ' #' + i);
+
+        }
+
+    }
+
+
+    $('#crash-game-seed').text(data.seed);
+
+    window.myLine.data.datasets[0].backgroundColor = gradientStrokeLose;
+    window.myLine.data.datasets[0].borderColor = '#E1675A';
+    window.myLine.update();
+
+
+    $('.crash-info').text('CRASHED x' + (data.x / 100).toFixed(2)).css({
+        'transition': 'color 200ms ease',
+        'color': '#a74c5c'
+    });
+    
+    $('.crash-user').each(function(i, elem) {
+        if (!$(this).hasClass("crash-win")) {
+
+            var id = $(this).attr('crashid');
+            var bet = $(this).find('span.crash_amount_span').text();
+            $('[crashid=' + id + ']').addClass('crash-lose');
+            $('[crashid=' + id + ']').find($('span#crash_profit')).text('-' + bet).addClass('lose');
+
+        }
+    });
+    
+    var hClass = 'dark_label';
+    if ((data.x / 100).toFixed(2) > 1) hClass = 'red_label'
+    if ((data.x / 100).toFixed(2) >= 1.5) hClass = 'aqua_label';
+    if ((data.x / 100).toFixed(2) >= 2) hClass = 'green_label';
+
+    if ($(".crash-history > li").length > 9) $(".crash-history > li").last().remove();
+    $(".crash-history").prepend("<li data-hash='" + data.hash + "' data-id='" + data.gid + "' data-seed='" + data.seed + "'><span class='" + hClass + "'>" + (data.x / 100).toFixed(2) + "</span></li>");
+
+}
+
+function __SOCKET_EVENT_CRASH_BET(data) {
+   
+    add_crash_bet(data, true);
+
+}
+
+
+window.mobileCheck = function() {
+  let check = false;
+  (function(a){if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a)||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4))) check = true;})(navigator.userAgent||navigator.vendor||window.opera);
+  return check;
+};

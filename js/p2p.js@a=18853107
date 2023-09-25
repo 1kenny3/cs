@@ -1,0 +1,2534 @@
+var SOCKET = false;
+var SOCKET_ADDRESS = "//csgopolygon.com";
+if (window.location.hostname == 'csgopolygon.gg') {
+    SOCKET_ADDRESS = "//csgopolygon.gg";
+}
+if (window.location.hostname == 'plg.bet') {
+    SOCKET_ADDRESS = "//plg.bet";
+}
+if (window.location.hostname == 'plgbet.com') {
+    SOCKET_ADDRESS = "//plgbet.com";
+}
+if (window.location.hostname == 'plgx2.com') {
+    SOCKET_ADDRESS = "//plgx2.com";
+}
+if (window.location.hostname == 'plg2x.com') {
+    SOCKET_ADDRESS = "//plg2x.com";
+}
+if (window.location.hostname == 'plg4x.com') {
+    SOCKET_ADDRESS = "//plg4x.com";
+}
+if (window.location.hostname == 'cs2plg.com') {
+    SOCKET_ADDRESS = "//cs2plg.com";
+}
+if (window.location.hostname == 'plgrubet.com') {
+    SOCKET_ADDRESS = "//plgrubet.com";
+}
+
+
+var totalBot = 0;
+
+var deposit_pending_interval;
+var deposit_pending_end;
+
+var deposit_ready_interval;
+var deposit_ready_end;
+
+var deposit_interval;
+var deposit_end;
+
+var withdraw_interval;
+var withdraw_end;
+
+var add_interval;
+var add_end;
+
+var filter_type = 1;
+
+var istatus = 'normal';
+
+var edit_range = false;
+
+var sound_notify      = new Audio("/sounds/p2p.mp3");
+sound_notify.volume   = .5;
+
+var open_trade = false;
+var timers = [];
+var first_sort = false;
+if(DEPOSIT) first_sort = false;
+
+
+var item_confirm_tmp = '<div class="inventory_item {9} {8}" add-price="0" price="{0}" item-id={1} item-info=\'{7}\'>';
+item_confirm_tmp += '<span class="inventory_item_cost">{8}</span>';
+item_confirm_tmp += '<div class="inventory_item_pic"><img src="{2}" alt="{5}"></div>'
+item_confirm_tmp += '<div class="inventory_item_description">';
+item_confirm_tmp += '<span class="inventory_item_prefix">{3}</span>';
+item_confirm_tmp += '<span class="inventory_item_label">{4}</span>';
+item_confirm_tmp += '<span class="inventory_item_name">{5}</span>';
+item_confirm_tmp += '<span class="inventory_item_category">{6}</span>';
+item_confirm_tmp += '</div>';
+item_confirm_tmp += '</div>';
+
+function doFilterW() {
+
+    var t = $("#filter").val().toLowerCase().replace(' ', '').replace('|', '');
+    var total = $(".inventory_left_content > div").length;
+    var n = $(".inventory_left_content > div").hide().filter(function(i, e) {
+        items = JSON.parse($(this).attr('items-info'));
+        tx = '';
+        var add_pr = 0;
+
+        for (var i = 0; i < items.length; i++) {
+            tx += items[i].name.toLowerCase().replace('|', '').replace(' ', '');
+            add_pr += items[i].add_price;
+        }
+        px = $(this).attr('price');
+
+        if(add_pr > 0 && $('.on_off').hasClass('toggled')) {
+            return false;
+        }
+
+        if (tx.toLowerCase().indexOf(t) >= 0) {
+            return true;
+        } else if (t.charAt(0) == ">") {
+            return px > parseInt(t.substr(1));
+        } else if (t.charAt(0) == ">") {
+            return px < parseInt(t.substr(1));
+        }
+
+    }).show().length;
+
+    if (t === "") {
+        $(".total_offers").html(total);
+    } else {
+        $(".total_offers").html(n + "/" + total);
+    }
+
+
+    //console.log('filter_type', filter_type)
+    try {
+        if(filter_type == 1) {
+            if(first_sort === true) {
+                tinysort(".inventory_left_content > div", {
+                    attr: "price_sort",
+                    order: "desc"
+                });
+            } else {
+                tinysort(".inventory_left_content > div", {
+                    attr: "price",
+                    order: "desc"
+                });
+            }
+        } else if (filter_type == 2) {
+            tinysort(".inventory_left_content > div", {
+                attr: "price",
+                order: "asc"
+            });
+        }
+    } catch (e) {
+        //console.log('filter e', e)
+    }
+}
+
+function doFilterD() {
+
+    var t = $("#filterD").val().toLowerCase().replace(' ', '').replace('|', '');
+    var total = $(".inventory_left_content > div").length;
+    var n = $(".inventory_left_content > div").hide().filter(function(i, e) {
+        item = JSON.parse($(this).attr('item-info'));
+        tx = item.name.toLowerCase().replace(' ', '').replace('|', '');
+        px = $(this).attr('price');
+
+        if (tx.toLowerCase().indexOf(t) >= 0) {
+            return true;
+        } else if (t.charAt(0) == ">") {
+            return px > parseInt(t.substr(1));
+        } else if (t.charAt(0) == ">") {
+            return px < parseInt(t.substr(1));
+        }
+    }).show().length;
+
+    if (t === "") {
+        $(".total_inv").html(total);
+    } else {
+        $(".total_inv").html(n + "/" + total);
+    }
+
+ //   console.log('ft', filter_type)
+    try {
+        if(filter_type == 1) {
+            tinysort(".inventory_left_content > div", {
+                attr: "price",
+                order: "desc"
+            });
+         //   console.log('ft1', filter_type)
+        } else if (filter_type == 2) {
+            tinysort(".inventory_left_content > div", {
+                attr: "price",
+                order: "asc"
+            });
+           // console.log('ft2', filter_type)
+        }
+    } catch (e) { console.log(e) }
+}
+
+function showSetW(id) {
+
+    $('#withdrawButtonBotClose').show();
+    $('#withdrawButtonBot').html('CONFIRM');
+    $('#withdrawButtonBot').prop('disabled', false);
+
+    var set = $(document).find('#tr' + id);
+    //console.log(set)
+    var price = $(set).attr('price');
+    //console.log($(set).attr('items-info'))
+    var items = JSON.parse($(set).attr('items-info'));
+    totalBot = price;
+
+    $('#withdraw_confirm_window_bot').find('.window_edit_items').html('');
+    $('#withdraw_confirm_window_bot').find('.total').html(price);
+    $('#withdraw_confirm_window_bot').find('#withdrawButtonBot').attr('setid', id);
+
+    for (var i = 0; i < items.length; i++) {
+
+        if (items[i] != undefined) {
+
+            var item = items[i];
+
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            
+            var show_add_price = item.add_price;
+            if(show_add_price > 99) show_add_price = 99;
+            
+            if (item.add_price != 0) {
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+            }
+        
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+
+            $('#withdraw_confirm_window_bot').find('.window_edit_items').append($(item_html));
+
+        }
+
+    }
+
+
+    modal('#withdraw_confirm_window_bot', true);
+
+}
+
+function showSet(id) {
+
+    var set = $(document).find('#tr' + id);
+    var price = $(set).attr('price');
+   // console.log($(set).attr('items-info'))
+    var items = JSON.parse($(set).attr('items-info'));
+
+    $('#withdraw_confirm_window').find('.window_edit_items').html('');
+    $('#withdraw_confirm_window').find('.total').html(price);
+    $('#withdraw_confirm_window').find('#withdrawButton').attr('setid', id);
+    
+    var price_alert = false;
+
+    for (var i = 0; i < items.length; i++) {
+
+        if (items[i] != undefined) {
+
+            var item = items[i];
+
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            
+            var show_add_price = item.add_price;
+            if(show_add_price > 99) show_add_price = 99;
+            
+            if (item.add_price != 0) {
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+            }
+            if(item.add_price >= 99) price_alert = true;
+
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+
+            $('#withdraw_confirm_window').find('.window_edit_items').append($(item_html));
+
+        }
+
+    }
+    
+    if(price_alert == true) {
+        
+        alerts.confirm(LNG['P2P_ATTENTION_PRICE'], function(r) {
+            
+            modal('#withdraw_confirm_window', true);   
+            
+        }, '', '', true);
+        
+        
+    } else {
+        modal('#withdraw_confirm_window', true);   
+    }
+
+}
+
+var item_tmp = '<span class="inventory_item_cost">{0}</span>';
+item_tmp += '<div class="inventory_item_pic"><img src="{1}" alt="{2}"></div>';
+item_tmp += '<div class="inventory_item_description">';
+item_tmp += '<span class="inventory_item_prefix">{3}</span>';
+item_tmp += '<span class="inventory_item_label">{4}</span>'
+item_tmp += '<span class="inventory_item_name">{5}</span>';
+item_tmp += '<span class="inventory_item_category">{6}</span>'
+item_tmp += '</div>'
+
+var bank_item_tmp = '<div class="bank_item_unit" price="{0}" price_sort="{4}"  id="{1}" items-info=\'{2}\'>';
+bank_item_tmp += '<div class="inventory_item confirm_item item_1"></div>';
+bank_item_tmp += '<div class="inventory_item confirm_item item_2 empty_item"></div>';
+bank_item_tmp += '<div class="inventory_item confirm_item item_3"></div>';
+bank_item_tmp += '<div class="inventory_item confirm_item item_4 empty_item"></div>';
+bank_item_tmp += '<div class="bank_item_bottom"><h3>{0}</h3><span>Total cost</span>';
+bank_item_tmp += '<button type="button" name="button" class="bank_item_button rate_button" onclick="{3}">Withdraw</button>';
+bank_item_tmp += '<div>';
+bank_item_tmp += '<div data-tooltip-location="top" data-tooltip="{7}" class="seller_rate {6}">';
+bank_item_tmp += '<svg class="star_{6}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/" x="0px" y="0px" width="11px" height="11px" viewBox="0 0 24 23" style="overflow:auto;enable-background:new 0 0 24 23;" xml:space="preserve"><defs></defs><path d="M23.9,8.7c-0.2-0.5-0.6-0.8-1.1-0.9l-6.9-0.6l-2.7-6.4c-0.3-0.6-1-0.9-1.7-0.7c-0.3,0.1-0.5,0.4-0.7,0.7L8.1,7.2L1.1,7.8C0.4,7.9-0.1,8.5,0,9.2c0,0.3,0.2,0.6,0.4,0.8l5.2,4.6l-1.5,6.8c-0.1,0.7,0.3,1.4,1,1.5C5.4,23,5.7,23,6,22.8l6-3.6l6,3.6c0.6,0.4,1.4,0.2,1.8-0.5c0.2-0.3,0.2-0.6,0.1-0.9l-1.5-6.8l5.2-4.6C24,9.7,24.1,9.2,23.9,8.7z M12.1,19.2L12.1,19.2z"></path></svg>';
+bank_item_tmp += '<span class="rate_text">{5}</span>';
+bank_item_tmp += '</div>';
+bank_item_tmp += '</div>';
+
+var item_img = "{0}/{1}fx{2}f";
+
+function newTrade(trade, disable_filter) {
+
+    var id = trade.id;
+    var items = trade.items;
+    var count = items.length;
+    var amount = trade.amount;
+    var aprice = false;
+    var seller_rate = trade.seller_rate;
+    var seller_success = trade.seller_success;
+
+    if(seller_rate <= 100) {
+        var rate_class = 'green';
+    }
+    if(seller_rate <= 61) {
+        rate_class = 'yellow';
+    }
+    if(seller_rate <= 33) {
+        var rate_class = 'red';
+    } 
+
+    var rate_text = LNG['P2P_SELLER_RATE'].replace('%rate%', seller_rate).replace('%success%', seller_success);
+
+    if(seller_rate == -1) {
+        rate_class = 'yellow';
+        seller_rate = '?';
+        rate_text = LNG['P2P_SELLER_RATE_0'];
+    } else {
+        seller_rate = (seller_rate / 10).toFixed(1)
+    }
+
+    if($('#tr' + id).length == 0) {
+
+
+
+    var SET = bank_item_tmp.format(amount, 'tr' + id, JSON.stringify(items), 'showSet('+id+')', amount, seller_rate, rate_class, rate_text);
+    SET = $(SET);
+
+  //  console.log(price_min, price_max, amount);
+
+    if(price_min !== false && parseInt(price_min) != 0 && parseInt(amount) < parseInt(price_min)) {
+    
+        return;
+    }
+    if(price_max !== false && parseInt(price_max) != 0 && parseInt(amount) > parseInt(price_max)) {
+    
+        return;
+    }
+
+    for (var i = 1; i < 5; i++) {
+
+     //   console.log(items[i - 1], items, i);
+        if (items[i - 1] != undefined) {
+
+            var item = items[i - 1];
+
+            var img = item_img.format(item.img, 147, 111);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            if (item.add_price != 0) {
+                
+                var show_add_price = item.add_price;
+                if(show_add_price > 99) show_add_price = 99;
+                
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+                aprice = true;
+            }
+
+            var item_html = item_tmp.format(price, img, skin, prefix, weapon, skin, wear);
+
+            
+            $(SET).find('.item_' + i).removeClass('empty_item');
+            $(SET).find('.item_' + i).html($(item_html));
+
+         //   console.log($(SET).find('.item_' + i));
+
+        } else {
+
+            $(SET).find('.item_' + i).addClass('empty_item');
+
+        }
+
+    }
+
+    if(aprice === false) $(SET).attr('price_sort', (100000000 + amount));
+    if(disable_filter == true) {
+        $('.inventory_left_content').append(SET);
+        return;
+    }
+
+
+    if(customprice == 0 && aprice == true) return;
+
+
+
+    $('.inventory_left_content').append(SET);
+    if(items_sort == 'default') {
+
+        /*tinysort(".inventory_left_content > div", {
+            attr: "price_sort",
+            order: "desc"
+        });*/
+
+        tinysort(".inventory_left_content > div", {
+            attr: "price",
+            order: "desc"
+        });
+
+    } else if(items_sort == 'desc') {
+
+        tinysort(".inventory_left_content > div", {
+            attr: "price",
+            order: "desc"
+        });
+
+    } else {
+
+        tinysort(".inventory_left_content > div", {
+            attr: "price",
+            order: "asc"
+        });
+
+    }
+    
+    
+    $(".total_offers").html($(".inventory_left_content > div").length + ' of ' + items_count);
+    
+    }
+
+}
+
+function _SOCKET_ACTIVE_TRADES(data) {
+    for (trade of data) {
+
+        //newTrade(trade);
+
+    }
+}
+
+function _SOCKET_DELETE_TRADE(data) {
+    var id = data.id;
+    //$(document).find($(document.getElementById('wm' + id))).modal('hide');
+    $('.inventory_left_content').find($(document.getElementById('tr' + id))).remove();
+    //doFilterW();
+}
+
+function _SOCKET_NEW_TRADE(data) {
+    newTrade(data);
+}
+
+function _SOCKET_WITHDRAW_SENT(data) {
+    sound_notify.play()
+    if(DEPOSIT) {
+
+        /*alerts.notify('You have active withdraw. Now you will be redirect to the withdraw page', '', 'warn', 'true', function() {
+            window.location.href = 'P2PWithdraw.php'
+        });*/
+        return;
+    }
+    showWithdraw(data, 1);
+}
+function _SOCKET_READY_SENT(data) {
+    //console.log('ready sent', data)
+    sound_notify.play()
+    if(DEPOSIT) {
+
+        /*alerts.notify('You have active withdraw. Now you will be redirect to the withdraw page', '', 'warn', 'true', function() {
+            window.location.href = 'P2PWithdraw.php'
+        });*/
+        return;
+    }
+    showWithdraw(data, 2);
+}
+
+function _SOCKET_TRADE_SENT_RECEIVER(data) {
+
+   // console.log(data)
+    $('#withdraw_offer_sent').find('.total').html(data.amount);
+    $('#withdraw_offer_sent').find('.user-img').attr('src', data.data_sender.avatar);
+    $('#withdraw_offer_sent').find('.user-name').html(data.name_sender);
+    $('#withdraw_offer_sent').find('.user-link').attr('href', 'https://steamcommunity.com/profiles/' + data.data_sender.steamid);
+    $('#withdraw_offer_sent').find('.open_offer').attr('href', 'https://steamcommunity.com/tradeoffer/' + data.offerid);
+    $('#withdraw_offer_sent').find('.window_edit_items').html('');
+    var items = data.items;
+
+    for (var i = 0; i < items.length; i++) {
+
+        if (items[i] != undefined) {
+
+            var item = items[i];
+
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            
+            var show_add_price = item.add_price;
+            if(show_add_price > 99) show_add_price = 99;
+            
+            if (item.add_price != 0) {
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+            }
+
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+
+            $('#withdraw_offer_sent').find('.window_edit_items').append($(item_html));
+
+        }
+
+    }
+
+    withdraw_end = data.time;
+
+    clearInterval(withdraw_interval);
+    clearInterval(deposit_interval);
+    clearInterval(add_interval);
+    clearInterval(deposit_pending_interval);    
+
+    var timer = $('#withdraw_offer_sent').find('.timer');
+    withdraw_interval = setInterval(function() {
+        updateClock(istatus, withdraw_end, timer, withdraw_interval, 'withdraw')
+    }, 1000);
+
+    modal('#withdraw_offer_sent', true);
+
+}
+
+function _SOCKET_DEPOSIT_CANCELED(data, type, open) {
+    sound_notify.play();
+
+    if(open_trade == data.id || type != 1) {
+        open = true;
+    }
+
+    if(open == true) {
+
+        canceled(data, type)
+
+    }
+
+    update_deposit_trade_data(data.id, data);
+}
+
+function _SOCKET_TRADE_COMPLETE(data, type, open) { // 1 - receiver 2 - sender
+    
+    if(open_trade == data.id || type == 1) {
+        open = true;
+    }
+
+    if(open === true) {
+        sound_notify.play();
+        var items = data.items;
+        $('#complete_trade').find('.total').html(data.amount);
+        $('#complete_trade').find('.total_coins').html(data.amount);
+        $('#complete_trade').find('.p2p_confirm').attr('tid', data.id);
+        if(type == 1) $('#complete_trade').find('.total_coins').html(data.amount * -1);
+        $('#complete_trade').find('.window_edit_items').html('');
+
+        for (var i = 0; i < items.length; i++) {
+
+            if (items[i] != undefined) {
+
+                var item = items[i];
+
+                var img = item_img.format(item.img, 120, 90);
+                var nameData = parseName(item.name);
+                var prefix = nameData.statTrak ? 'StatTrak' : '';
+                var weapon = nameData.weapon;
+                if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                var skin = nameData.skin ? nameData.skin : '';
+                var wear = nameData.wear ? nameData.wear : '';
+                var price = parseInt(item.price + item.price / 100 * item.add_price);
+                
+                var show_add_price = item.add_price;
+                if(show_add_price > 99) show_add_price = 99;
+                
+                if (item.add_price != 0) {
+                    var s = '+';
+                    if(item.add_price < 0) s = '';
+                    price = price + ' (' + s + parseInt(show_add_price) + '%)';
+                }
+
+                var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+
+                $('#complete_trade').find('.window_edit_items').append($(item_html));
+
+            }
+
+        }
+
+        modal('#complete_trade', true);
+    }
+
+    update_deposit_trade_data(data.id, data);
+
+}
+
+function update_deposit_trade_data(id, data) {
+
+   //console.log('update_deposit_trade_data', id, data);
+
+    if($('.trades_cart').find($('.item_bundle[trade_id="'+id+'"]')).length != 0) {
+
+        var trade_data = $('.trades_cart').find($('.item_bundle[trade_id="'+id+'"]')).attr('trade_data');
+        var trade_data = JSON.parse(trade_data);
+
+        for (const [key, value] of Object.entries(data)) {
+          
+            trade_data[key] = value;
+
+        }
+
+       // console.log('new_data', trade_data);
+
+        deposit_trade(trade_data);
+
+    }
+}
+
+
+function _SOCKET_DEPOSIT_ACTIVE(data) {
+    //console.log(data)
+    sound_notify.play();
+    /*if(!DEPOSIT) {
+        alerts.confirm('You have active deposit. Now you will be redirect to the deposit page', function(r) {
+            if(r) window.location.href = 'P2PDeposit.php'
+        }, '', '', true);
+        return;
+    }*/
+    showPending(data);
+    open_trade = data.id;
+    deposit_trade(trade_data);
+}
+
+function _SOCKET_TRADE_ACCEPTED(data, open) {
+    sound_notify.play();
+    /*if(!DEPOSIT) {
+        alert.confirm('You have active deposit. Now you will be redirect to the deposit page', function() {
+            if(r) window.location.href = 'P2PDeposit.php'
+        }, '', '', true);
+        return;
+    }*/
+
+    if(open_trade == data.id) {
+        open = true;
+    }
+
+    if(open === true || data.open !== undefined && data.open == true) {
+
+        if(data.status == 7) return showReady(data);
+
+        open_trade = data.id;
+
+        $('#deposit_buyer_found').find('.total').html(data.amount);
+        $('#deposit_buyer_found').find('.user-img').attr('src', data.data_receiver.avatar);
+        $('#deposit_buyer_found').find('.user-date').html(data.data_receiver.timecreated);
+        $('#deposit_buyer_found').find('.user-level').html(data.data_receiver.level);
+        $('#deposit_buyer_found').find('.user-name').html(data.name_receiver);
+        $('#deposit_buyer_found').find('.user-link').attr('href', 'https://steamcommunity.com/profiles/' + data.data_receiver.steamid);
+        $('#deposit_buyer_found').find('.offer_link').attr('href', data.tradeurl);
+        $('#deposit_buyer_found').find('.window_edit_items').html('');
+        var items = data.items;
+
+        for (var i = 0; i < items.length; i++) {
+
+            if (items[i] != undefined) {
+
+                var item = items[i];
+
+                var img = item_img.format(item.img, 120, 90);
+                var nameData = parseName(item.name);
+                var prefix = nameData.statTrak ? 'StatTrak' : '';
+                var weapon = nameData.weapon;
+                if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                var skin = nameData.skin ? nameData.skin : '';
+                var wear = nameData.wear ? nameData.wear : '';
+                var price = parseInt(item.price + item.price / 100 * item.add_price);
+                
+                var show_add_price = item.add_price;
+                if(show_add_price > 99) show_add_price = 99;
+                
+                if (item.add_price != 0) {
+                    var s = '+';
+                    if(item.add_price < 0) s = '';
+                    price = price + ' (' + s + parseInt(show_add_price) + '%)';
+                }
+
+                var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+                item_html = $(item_html);
+
+                $(item_html).prepend('<span class="item_edit_trigger copy_click" elem="#copy'+item.assetid+'" copied="true" item-id="'+item.assetid+'">Copy</span>');
+                $(item_html).append('<span style="display: none" class="copy_name" id="copy'+item.assetid+'">'+item.name.replace('(', '').replace(')', '')+'</span>')
+
+                $('#deposit_buyer_found').find('.window_edit_items').append($(item_html));
+
+            }
+
+        }
+
+        deposit_end = data.time;
+        var timer = $('#deposit_buyer_found').find('.timer');
+        
+        clearInterval(deposit_pending_interval);    
+        deposit_interval = setInterval(function() {
+            updateClock(istatus, deposit_end, timer, deposit_interval, 'trade_accepted')
+        }, 1000);
+
+        modal('#deposit_buyer_found', true);
+
+    }
+
+    update_deposit_trade_data(data.id, data);
+
+}
+
+
+function _SOCKET_TRADE_SENT_SENDER(data, open) {
+    sound_notify.play();
+    if(!DEPOSIT) {
+        alert.notify('You have active deposit. Now you will be redirect to the deposit page', '', '', true, function() {
+            window.location.href = 'P2PDeposit.php'
+        });
+        return;
+    }
+
+    if(open_trade == data.id) {
+        open = true;
+    }
+
+    if(open === true) {
+
+        $('#deposit_offer_sent').find('.total').html(data.amount);
+        $('#deposit_offer_sent').find('.window_edit_items').html('');
+        var items = data.items;
+
+        for (var i = 0; i < items.length; i++) {
+
+            if (items[i] != undefined) {
+
+                var item = items[i];
+
+                var img = item_img.format(item.img, 120, 90);
+                var nameData = parseName(item.name);
+                var prefix = nameData.statTrak ? 'StatTrak' : '';
+                var weapon = nameData.weapon;
+                if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                var skin = nameData.skin ? nameData.skin : '';
+                var wear = nameData.wear ? nameData.wear : '';
+                var price = parseInt(item.price + item.price / 100 * item.add_price);
+                
+                var show_add_price = item.add_price;
+                if(show_add_price > 99) show_add_price = 99;
+                
+                if (item.add_price != 0) {
+                    var s = '+';
+                    if(item.add_price < 0) s = '';
+                    price = price + ' (' + s + parseInt(show_add_price) + '%)';
+                }
+
+                var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+
+
+                $('#deposit_offer_sent').find('.window_edit_items').append($(item_html));
+
+            }
+
+        }
+
+        deposit_end = data.time;
+        var timer = $('#deposit_offer_sent').find('.timer');
+        
+        clearInterval(withdraw_interval);
+        clearInterval(deposit_interval);
+        clearInterval(add_interval);
+        clearInterval(deposit_pending_interval);
+         
+        deposit_interval = setInterval(function() {
+            updateClock(istatus, deposit_end, timer, deposit_interval, 'trade_accepted')
+        }, 1000);
+
+        modal('#deposit_offer_sent', true);
+
+    }
+
+    update_deposit_trade_data(data.id, data);
+
+}
+
+function connect() {
+
+    if (!SOCKET) {
+
+        $.ajax({
+            'url': "/scripts/getToken?v=" + (new Date()).getTime(),
+            success: function(data) {
+
+                if (data) {
+                    
+                    var page = 1;
+                    if(DEPOSIT === true) page = 2;
+                    
+                    var LANG_SELECT = 'en';
+                    SOCKET = io.connect(SOCKET_ADDRESS, {
+                        'path': '/socket.api2p2p',
+                        'query': data + "&language=" + LANG_SELECT + "&page=" + page,
+                        'reconnection': false
+                    });
+
+                    SOCKET.on('connect', function() {
+
+                            SOCKET.on('deposit_active', function(data) { _SOCKET_DEPOSIT_ACTIVE(data) });
+                            SOCKET.on('trade_canceled_sender', function(data) { _SOCKET_DEPOSIT_CANCELED(data, 1) });
+                            SOCKET.on('trade_canceled_receiver', function(data) { _SOCKET_DEPOSIT_CANCELED(data, 2) });
+                        if (!DEPOSIT) {
+                         //   console.log('!deposit')
+                            SOCKET.on('active_trades', function(data) {
+                                _SOCKET_ACTIVE_TRADES(data)
+                            });
+                            SOCKET.on('delete_trade', function(data) {
+                                _SOCKET_DELETE_TRADE(data)
+                            });
+                            SOCKET.on('new_trade', function(data) {
+                                _SOCKET_NEW_TRADE(data)
+                            });
+                            
+                            
+                        }
+                        SOCKET.on('withdraw_sent', function(data) { _SOCKET_WITHDRAW_SENT(data) });
+                        SOCKET.on('ready_sent', function(data) { _SOCKET_READY_SENT(data) });
+                            SOCKET.on('trade_sent_receiver', function(data) { _SOCKET_TRADE_SENT_RECEIVER(data) });
+                             SOCKET.on('trade_sent_sender', function(data) { _SOCKET_TRADE_SENT_SENDER(data) });
+                            SOCKET.on('trade_complete_receiver', function(data) { _SOCKET_TRADE_COMPLETE(data, 1) });
+                            SOCKET.on('trade_complete_sender', function(data) { _SOCKET_TRADE_COMPLETE(data, 2) });
+                            SOCKET.on('trade_accepted', function(data) { _SOCKET_TRADE_ACCEPTED(data) });
+                    });
+
+                    SOCKET.on('connect_error', function() {
+                        sound_notify.play();
+                        alerts.confirm('Error connecting to p2p server. Please reload the page', function(r) {
+                            if (r) window.location.reload();
+                        }, 'error', 'error', true);
+                    });
+
+                    SOCKET.on('connect_timeout', function() {
+                        sound_notify.play();
+                        alerts.confirm('Error connecting to p2p server. Please reload the page (timeout)', function(r) {
+                            if (r) window.location.reload();
+                        }, 'error', 'error', true);
+
+                    });
+
+                    SOCKET.on('disconnect', function(error) {
+                        sound_notify.play();
+                        alerts.confirm('Error connecting to p2p server. Please reload the page (' + error + ')', function(r) {
+                            if (r) window.location.reload();
+                        }, 'error', 'error', true);
+
+                    });
+
+                }
+
+            },
+            error: function(e) {
+
+                console.log('get token error', e);
+
+            }
+        });
+
+    }
+
+}
+
+function showWithdraw(data, type) {
+
+    if(type == 1) {
+        $('.to_send').show();
+        $('.to_confirm').hide();
+    } else {
+        $('.to_confirm').show();
+        $('.to_send').hide();
+    }
+
+
+    $('#withdraw_sent').find('.total').html(data.amount);
+    if(type == 1) {
+         $('#withdraw_sent').find('.user-img').show();
+         $('#withdraw_sent').find('.user-name').show();
+         $('#withdraw_sent').find('.user-link').show();
+
+         $('#withdraw_sent').find('.user-img').attr('src', data.data_sender.avatar);
+         $('#withdraw_sent').find('.user-name').html(data.name_sender);
+         $('#withdraw_sent').find('.user-link').attr('href', 'https://steamcommunity.com/profiles/' + data.data_sender.steamid);
+    } else {
+         $('#withdraw_sent').find('.user-img').hide();
+         $('#withdraw_sent').find('.user-name').hide();
+         $('#withdraw_sent').find('.user-link').hide();
+    }
+    $('#withdraw_sent').find('.window_edit_items').html('');
+    var items = data.items;
+
+    for (var i = 0; i < items.length; i++) {
+
+        if (items[i] != undefined) {
+
+            var item = items[i];
+
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            
+            var show_add_price = item.add_price;
+            if(show_add_price > 99) show_add_price = 99;
+            
+            if (item.add_price != 0) {
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+            }
+
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+
+
+            $('#withdraw_sent').find('.window_edit_items').append($(item_html));
+
+        }
+
+    }
+
+    clearInterval(withdraw_interval);
+    withdraw_end = data.time;
+    var timer = $('#withdraw_sent').find('.timer');
+    withdraw_interval = setInterval(function() {
+        updateClock(istatus, withdraw_end, timer, withdraw_interval, 'withdraw')
+    }, 1000);
+
+    modal('#withdraw_sent', true);
+
+}
+
+function canceled(data, type) {
+    var messages
+    if(type == 1) {
+        messages = LNG['P2P_CANCELED_DESC_SENDER'];   
+    } else {
+        messages = LNG['P2P_CANCELED_DESC_RECEIVER'];   
+    }
+    $('#trade_canceled').find('.window_edit_items').html('');
+
+    var items = data.items;
+
+    for (var i = 0; i < items.length; i++) {
+
+        if (items[i] != undefined) {
+
+            var item = items[i];
+
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            
+            var show_add_price = item.add_price;
+            if(show_add_price > 99) show_add_price = 99;
+            
+            if (item.add_price != 0) {
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+            }
+
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+
+            $('#trade_canceled').find('.window_edit_items').append($(item_html));
+
+        }
+
+    }
+
+    if(messages[data.message]) {
+        $('#trade_canceled').find('.msg').html(messages[data.message]);
+    }
+ 
+    $('#trade_canceled').find('.total').html(data.amount);
+    $('#trade_canceled').find('.p2p_confirm').attr('tid', data.id);
+
+    clearInterval(withdraw_interval);
+    clearInterval(deposit_interval);
+    clearInterval(deposit_pending_interval);
+    clearInterval(add_interval);
+    
+    modal('#trade_canceled', true);
+}
+
+
+$(document).on('click', '.ready_to_trade', function() {
+    
+    var id = $(this).attr('trade_id');
+    var url = "/scripts/p2p_test/confirmReady";
+
+    $.ajax({
+        "url": url,
+        type: "POST",
+        data: {
+            "id": id,
+        },
+        success: function(data) {
+            try {
+                
+                data = JSON.parse(data);
+                if(data.success) {
+                    clearInterval(deposit_pending_interval); 
+                    //cart_clear();
+                   // deposit_trade(data);
+                    //showPending(data);
+                } else {
+                    alerts.notify(data.error, 'Error', 'error', true);
+                }
+            } catch (err) {
+                closeWindows();
+                alerts.notify(err.message, 'Error', 'error', true);
+            }
+        },
+        error: function(err) {
+                closeWindows();
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        },
+    });
+})
+
+function deposit() {
+
+    //closeWindows();
+    var prev_text = $('#deposit_confirm_button').html();
+    $('#deposit_confirm_button').html('LOADING..');
+    $('#deposit_confirm_button').prop('disabled', true);
+    $('[close="#deposit_confrim_window"]').hide();
+    //inlineAlert("", LNG['PROCESS_SEND_OFFER']);
+    var csv = "";
+    var add = "";
+    var sum = 0;
+    $('#deposit_confrim_window').find('.inventory_item').each(function() {
+        var item = JSON.parse($(this).attr('item-info'));
+        var price = item.price;
+        var add_price = $(this).attr('add-price');
+        var itemPrice = parseInt(price + price / 100 * add_price);
+        
+        csv += item.assetid + ',';
+        add += add_price + ',';
+        sum += itemPrice;
+
+    });
+    var turl = $("#tradeurl_deposit").val();
+    var apikey = $("#api_deposit").val();
+    var remember = $("#remember_deposit").is(":checked") ? "on" : "off";
+    var url = "/scripts/p2p_test/deposit";
+
+    $.ajax({
+        "url": url,
+        type: "POST",
+        data: {
+            "assetids": csv,
+            "addprice": add,
+            "checksum": sum,
+            "tradeurl": turl,
+            "remember": remember,
+            "api": apikey
+        },
+        success: function(data) {
+            try {
+                
+                $('#deposit_confirm_button').html(prev_text);
+                $('#deposit_confirm_button').prop('disabled', false);
+                $('[close="#deposit_confrim_window"]').show();
+                closeWindows();
+                data = JSON.parse(data);
+                if(data.success) {
+                    cart_clear();
+                    deposit_trade(data);
+                    if(data.tg_connect) {
+                        modal('.connect_telegram');
+                    }
+                    //showPending(data);
+                } else {
+                    alerts.notify(data.error, 'Error', 'error', true);
+                }
+            } catch (err) {
+                $('#deposit_confirm_button').html(prev_text);
+                $('#deposit_confirm_button').prop('disabled', false);
+                $('[close="#deposit_confrim_window"]').show();
+                closeWindows();
+                alerts.notify(err.message, 'Error', 'error', true);
+            }
+        },
+        error: function(err) {
+            $('#deposit_confirm_button').html(prev_text);
+                $('#deposit_confirm_button').prop('disabled', false);
+                $('[close="#deposit_confrim_window"]').show();
+                closeWindows();
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        },
+    });
+ 
+}
+
+function showReady(data) {
+    open_trade = data.id;
+    $('#deposit_ready').find('.window_edit_items').html('');
+    var items = data.items;
+    for (var i = 0; i < items.length; i++) {
+
+        if (items[i] != undefined) {
+
+            var item = items[i];
+
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            if (item.add_price != 0) {
+                
+                var show_add_price = item.add_price;
+                if(show_add_price > 99) show_add_price = 99;
+                
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+                end_trade = 0;
+            }
+
+
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+            item_html = $(item_html);
+            $(item_html).prepend('<span class="item_edit_trigger copy_click" elem="#copy'+item.assetid+'" copied="true" item-id="'+item.assetid+'">Copy</span>');
+            $(item_html).append('<span style="display: none" class="copy_name" id="copy'+item.assetid+'">'+item.name.replace('(', '').replace(')', '')+'</span>')
+
+
+            
+
+            $('#deposit_ready').find('.window_edit_items').append($(item_html));
+
+        }
+
+    }
+
+    $('#deposit_ready').find('.total').html(data.amount);
+    $('#deposit_ready').find('.ready_to_trade').attr('trade_id', data.id);
+
+    clearInterval(deposit_ready_interval);
+    deposit_ready_end = data.time;
+    deposit_ready_interval = setInterval(function() {
+        updateClock(istatus, deposit_ready_end, $('.timer_ready'), deposit_ready_interval)
+    }, 1000);
+    $('.wait_timer').show();
+    
+    modal('#deposit_ready', true);
+    update_deposit_trade_data(data.id, data);
+
+}
+
+
+function showPending(data) {
+
+    open_trade = data.id;
+
+$('#deposit_pending').find('.window_edit_items').html('');
+
+    var items = data.items;
+    var end_trade = 1;
+
+    for (var i = 0; i < items.length; i++) {
+
+        if (items[i] != undefined) {
+
+            var item = items[i];
+
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = parseInt(item.price + item.price / 100 * item.add_price);
+            if (item.add_price != 0) {
+                
+                var show_add_price = item.add_price;
+                if(show_add_price > 99) show_add_price = 99;
+                
+                var s = '+';
+                if(item.add_price < 0) s = '';
+                price = price + ' (' + s + parseInt(show_add_price) + '%)';
+                end_trade = 0;
+            }
+
+
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, '', price, 'confirm_item');
+            item_html = $(item_html);
+            $(item_html).prepend('<span class="item_edit_trigger copy_click" elem="#copy'+item.assetid+'" copied="true" item-id="'+item.assetid+'">Copy</span>');
+            $(item_html).append('<span style="display: none" class="copy_name" id="copy'+item.assetid+'">'+item.name.replace('(', '').replace(')', '')+'</span>')
+
+
+            
+
+            $('#deposit_pending').find('.window_edit_items').append($(item_html));
+
+        }
+
+    }
+
+    if(data.timer == false) end_trade = 0;
+
+    $('#deposit_pending').find('.total').html(data.amount);
+    $('#deposit_pending').find('.deposit_active_cancel').attr('tid', data.id);
+    if(end_trade == 1) {
+        
+        clearInterval(deposit_pending_interval);
+        deposit_pending_end = data.time;
+        deposit_pending_interval = setInterval(function() {
+            updateClock(istatus, deposit_pending_end, $('.timer'), deposit_pending_interval)
+        }, 1000);
+        $('.wait_timer').show();
+    } else {
+        $('.wait_timer').hide();
+    }
+    //inlineAlert("success", LNG['NEW_TRADEOFFER']);
+    modal('#deposit_pending', true);
+}
+
+function withdraw(id) {
+
+    //inlineAlert("", LNG['PROCESS_SEND_OFFER']);
+    var prev_text = $('#withdrawButton').html();
+    $('#withdrawButton').html('LOADING..');
+    $('#withdrawButton').prop('disabled', true);
+    $('[close="#withdraw_confirm_window"]').hide();
+    
+    var turl = $('#withdraw_confirm_window').find("#tradeurl").val();
+    var remember = $('#withdraw_confirm_window').find("#remember").is(":checked") ? "on" : "off";
+    var url = "/scripts/p2p_test/withdraw";
+    var secret = session_secret;
+    $.ajax({
+        "url": url,
+        type: "POST",
+        data: {
+            "tradeurl": turl,
+            "remember": remember,
+            "id": id,
+            "secret": secret
+        },
+        success: function(data) {
+            try {
+                data = JSON.parse(data);
+                closeWindow("#withdraw_confirm_window");
+                $('#withdrawButton').html(prev_text);
+                $('#withdrawButton').prop('disabled', false);
+                $('[close="#withdraw_confirm_window"]').show();
+                if (data.success) {
+                    
+                    showWithdraw(data, 2);
+
+                } else {
+                    alerts.notify(data.error, 'Error', 'error', true);
+                }
+            } catch (err) {
+                 closeWindow("#withdraw_confirm_window");
+                $('#withdrawButton').html(prev_text);
+                $('#withdrawButton').prop('disabled', false);
+                $('[close="#withdraw_confirm_window"]').show();
+                 alerts.notify(err.message, 'Error', 'error', true);
+            }
+        },
+        error: function(err) {
+           closeWindow("#withdraw_confirm_window");
+                $('#withdrawButton').html(prev_text);
+                $('#withdrawButton').prop('disabled', false);
+                $('[close="#withdraw_confirm_window"]').show();
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        },
+    });
+}
+$(document).on("click", '#withdrawButton', function() {
+    var id = $(this).attr('setid');
+    
+    if(p2p_ban_alert != false) {
+        
+         
+        closeWindow("#withdraw_confirm_window");
+        alerts.confirm(p2p_ban_alert, function(r) {
+            if(r) {
+                 modal('#withdraw_confirm_window');
+                withdraw(id);
+                p2p_ban_alert = false;
+            } else {
+                 modal('#withdraw_confirm_window');
+            }
+        }, '', '', true);
+        
+    } else {
+        withdraw(id);
+    }
+   
+});
+
+$(document).on("click", '#withdrawButtonBot', function() {
+    var id = $(this).attr('setid');
+    withdrawBot(id);
+})
+
+$(document).on("click", '.p2p_confirm', function() {
+    var id = $(this).attr('tid');
+    confirm(id);
+});
+
+$(document).on('click', '#open_bot_offer', function() {
+
+    var win = window.open('https://steamcommunity.com/tradeoffer/' + $(this).attr('tid'), '_blank');
+    win.focus(); 
+
+});
+
+$(document).on('click', '#offer_bot_confirm', function() {
+
+    confirmTrade($(this).attr('tid'));
+
+});
+
+    
+function confirmTrade(id) {
+
+    $this = $("#offer_bot_confirm");
+    $this.prop("disabled", true);
+    $this.html('LOADING..');
+    var tid = $this.data("tid");
+    $.ajax({
+        url: "/scripts/p2p_test/confirmBot",
+        type: "GET",
+        data: {
+            "tid": id
+        },
+        success: function(data) {
+            try {
+                data = JSON.parse(data);
+                if(data.success) {
+
+                    closeWindows();
+
+                    alerts.notify(data.result, 'success', 'success', true);
+
+                } else {
+                    alerts.notify(data.error, 'Error', 'error', true);
+                }
+            } catch (err) {
+                alerts.notify(err.message, 'Error', 'error', true);
+                $this.html('CONFIRM');
+                $this.prop("disabled", false);
+            }
+        },
+        error: function(err) {
+            alerts.notify(err.responseText, 'Error', 'error', true);
+            $this.html('CONFIRM');
+            $this.prop("disabled", false);
+        },
+        complete: function() {
+            $this.html('CONFIRM');
+            $this.prop("disabled", false);
+        }
+    });
+}
+
+function showPendingBot(data) {
+
+    $('.total').html(data.amount);
+
+    $('#open_bot_offer').attr("tid", data.acceptid);
+    $('#offer_bot_confirm').attr("tid", data.tid);
+    var content = LNG['NEW_TRADEOFFER_FROM'] + " " + data.bot + " " + LNG['WITH_SECRETCODE'] + " " + data.code + " " + LNG['ON'] + " " + data.amount + " " + LNG['COINS_PLEASE'] + data.acceptid + LNG['CONFIRM_TRADEOFFER_PLEASE'];
+    $('#offer_set_bot_text').html(content);
+    
+    modal('#withdraw_bot_offer_sent');
+}
+
+function withdrawBot(id) {
+   //inlineAlert("", LNG['PROCESS_SEND_OFFER']);
+    
+    $('#withdrawButtonBotClose').hide()
+    $('#withdrawButtonBot').prop('disabled', true);
+    $('#withdrawButtonBot').html('LOADING..');
+
+    var setid = id;
+    var turl = $("#tradeurlBot").val();
+    var remember = $("#rememberBot").is(":checked") ? "on" : "off";
+    var secret = session_secret;
+    var url = "/scripts/p2p_test/withdrawBot";
+    var sum = parseInt(totalBot);
+    $.ajax({
+        "url": url,
+        type: "POST",
+        data: {
+            "setid": setid,
+            "tradeurl": turl,
+            "checksum": sum,
+            "remember": remember,
+            "secret": secret
+        },
+        success: function(data) {
+            try {
+                data = JSON.parse(data);
+                if (data.success) {
+                    closeWindows();
+                    showPendingBot(data);
+                } else {
+                    closeWindows();
+                    alerts.notify(data.error, 'Error', 'error', true);
+                    resetBotConfirmButtons();
+                }
+            } catch (err) {
+                alerts.notify(err.message, 'Error', 'error', true);
+                resetBotConfirmButtons();
+            }
+        },
+        error: function(err) {
+             alerts.notify(err.responseText, 'Error', 'error', true);
+             resetBotConfirmButtons();
+        },
+    });
+}
+
+function resetBotConfirmButtons() {
+    $('#withdrawButtonBotClose').show();
+    $('#withdrawButtonBot').html('CONFIRM');
+    $('#withdrawButtonBot').prop('disabled', false);
+}
+
+var items_limit_default = 100;
+var items_limit = 100;
+var items_offset = 0;
+var items_count = 0;
+var typingTimer;               
+var doneTypingInterval = 450; 
+var items_loading = true;
+var customprice = 1;
+var max_add_percent = 10000;
+var items_sort = 'default';
+var items_filter_name = '';
+var items_first_load = true;
+var price_min = false;
+var price_max = false;
+
+
+function checkBotTrades() {
+    $('.total_offers').html('Loading..')
+    var url = "/scripts/p2p_test/checkBotTrade";
+    items_loading = true;
+    $.ajax({   
+        url : url,
+        type : 'POST',
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+                
+
+                if (data.tid) {
+                    showPendingBot(data);
+                }
+
+
+            } else {
+                alerts.notify(data.error, 'Error', 'error', true);
+            }
+        },
+        error : err => {
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        }
+    });
+
+}
+
+var p2p_ban_alert = false;
+
+function loadItems() {
+    $('.total_offers').html('Loading..')
+    var url = "/scripts/p2p_test/get_bank";
+    items_loading = true;
+    $.ajax({   
+        url : url,
+        type : 'POST',
+        data : {
+            limit: items_limit_default,
+            offset: 0,
+            customprice: customprice,
+            sort: items_sort,
+            name: $('#filter').val(),
+            price_min: price_min,
+            price_max: price_max,
+            max_add_price: max_add_percent
+        },
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+                
+                if(data.p2p_ban_alert != undefined && data.p2p_ban_alert != false) {
+                    
+                    p2p_ban_alert = data.p2p_ban_alert;
+                
+                    
+                }
+
+                items_limit = data.pagination.limit;
+                items_offset = data.pagination.offset + items_limit;;
+                items_count = data.pagination.count;
+
+                var items = data.items; 
+                
+                for (trade of items) {
+                    
+                    if(trade.type == 'p2p') {
+                        newTrade(trade, true);
+                    } else if(trade.type == 'bot') {
+
+
+
+                        var set = trade;
+                        var seller_rate = set.seller_rate;
+                        var seller_success = set.seller_success;
+
+                        if(seller_rate <= 100) {
+                            var rate_class = 'green';
+                        }
+                        if(seller_rate <= 61) {
+                            rate_class = 'yellow';
+                        }
+                        if(seller_rate <= 33) {
+                            var rate_class = 'red';
+                        } 
+
+                        var rate_text = LNG['P2P_SELLER_RATE'].replace('%rate%', seller_rate).replace('%success%', seller_success);
+
+                        if(seller_rate == -1) {
+                            rate_class = 'yellow';
+                            seller_rate = '?';
+                            rate_text = LNG['P2P_SELLER_RATE_0'];
+                        } else {
+                            seller_rate = (seller_rate / 10).toFixed(1)
+                        }
+                        var SET = bank_item_tmp.format(set.price, 'tr' + set.setid, JSON.stringify(set.items), 'showSetW('+set.setid+')', set.price, seller_rate, rate_class, rate_text);
+                        SET = $(SET);
+                        var aprice = false;
+
+                        for (var i = 1; i < 5; i++) {
+
+                            if (set.items[i - 1] != undefined) {
+
+                                
+
+                                var item = set.items[i - 1];
+
+                                var img = item_img.format(item.img, 147, 111);
+                                var nameData = parseName(item.display_name);
+                                var prefix = nameData.statTrak ? 'StatTrak' : '';
+                                var weapon = nameData.weapon;
+                                if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                                var skin = nameData.skin ? nameData.skin : '';
+                                var wear = nameData.wear ? nameData.wear : '';
+                                var price = parseInt(item.price + item.price / 100 * item.add_price);
+                                if (item.add_price > 0) {
+                                    
+                                    var show_add_price = item.add_price;
+                                    if(show_add_price > 99) show_add_price = 99;
+                                    
+                                    var s = '+';
+                                    if(item.add_price < 0) s = '';
+                                    price = price + ' (' + s + parseInt(show_add_price) + '%)';
+                                    aprice = true;
+                                }
+
+                                var item_html = item_tmp.format(price, img, skin, prefix, weapon, skin, wear);
+
+                                
+                                $(SET).find('.item_' + i).removeClass('empty_item');
+                                $(SET).find('.item_' + i).html($(item_html));
+
+                            } else {
+                                $(SET).find('.item_' + i).addClass('empty_item');
+                            }
+
+                        }
+
+                        if(aprice === false) $(SET).attr('price_sort', (100000000 + set.price));
+                        $('.inventory_left_content').append(SET);
+
+                    }
+            
+                }
+                
+
+
+                $('<button class="load_more table_page_button casino_loading" style=""><span>load more</span></button>').insertAfter('.inventory_left_content');
+                $(".total_offers").html($(".inventory_left_content > div").length + ' of ' + items_count);
+                items_loading = false;
+
+
+            } else {
+                alerts.notify(data.error, 'Error', 'error', true);
+            }
+        },
+        error : err => {
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        }
+    });
+
+}
+
+function items_filter () {
+    items_loading = true;
+    items_first_load = false;
+    $('.casino_loading').remove();
+    var url = "/scripts/p2p_test/get_bank";
+    $.ajax({   
+        url : url,
+        type : 'POST',
+        data : {
+            limit: items_limit,
+            offset: items_offset,
+            customprice: customprice,
+            sort: items_sort,
+            name: $('#filter').val(),
+            price_min: price_min,
+            price_max: price_max,
+            max_add_price: max_add_percent
+        },
+        success : data => {
+            data = JSON.parse(data);
+            if(data.success) {
+                 
+                items_limit = data.pagination.limit;
+                items_offset = data.pagination.offset + items_limit;
+                items_count = data.pagination.count;
+                
+                var items = data.items; 
+                
+                for (trade of items) {
+                    
+                    if(trade.type == 'p2p') {
+                        newTrade(trade, true);
+                    } else if(trade.type == 'bot') {
+
+                        var set = trade;
+                        var seller_rate = set.seller_rate;
+                        var seller_success = set.seller_success;
+
+                        if(seller_rate <= 100) {
+                            var rate_class = 'green';
+                        }
+                        if(seller_rate <= 61) {
+                            rate_class = 'yellow';
+                        }
+                        if(seller_rate <= 33) {
+                            var rate_class = 'red';
+                        } 
+
+                        var rate_text = LNG['P2P_SELLER_RATE'].replace('%rate%', seller_rate).replace('%success%', seller_success);
+
+                        if(seller_rate == -1) {
+                            rate_class = 'yellow';
+                            seller_rate = '?';
+                            rate_text = LNG['P2P_SELLER_RATE_0'];
+                        } else {
+                            seller_rate = (seller_rate / 10).toFixed(1)
+                        }
+                        var SET = bank_item_tmp.format(set.price, 'tr' + set.setid, JSON.stringify(set.items), 'showSetW('+set.setid+')', set.price, seller_rate, rate_class, rate_text);
+                        SET = $(SET);
+                        var aprice = false;
+                        for (var i = 1; i < 5; i++) {
+
+                            if (set.items[i - 1] != undefined) {
+
+                                
+
+                                var item = set.items[i - 1];
+
+                                var img = item_img.format(item.img, 147, 111);
+                                var nameData = parseName(item.display_name);
+                                var prefix = nameData.statTrak ? 'StatTrak' : '';
+                                var weapon = nameData.weapon;
+                                if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                                var skin = nameData.skin ? nameData.skin : '';
+                                var wear = nameData.wear ? nameData.wear : '';
+                                var price = parseInt(item.price + item.price / 100 * item.add_price);
+                                if (item.add_price > 0) {
+                                    
+                                    var show_add_price = item.add_price;
+                                    if(show_add_price > 99) show_add_price = 99;
+                                    
+                                    var s = '+';
+                                    if(item_add_price < 0) s = '';
+                                    price = price + ' (' + s + show_add_price + '%)';
+                                    aprice = true;
+                                }
+
+                                var item_html = item_tmp.format(price, img, skin, prefix, weapon, skin, wear);
+
+                                
+                                $(SET).find('.item_' + i).removeClass('empty_item');
+                                $(SET).find('.item_' + i).html($(item_html));
+
+                            } else {
+                                $(SET).find('.item_' + i).addClass('empty_item');
+                            }
+
+                        }
+
+                        if(aprice === false) $(SET).attr('price_sort', (100000000 + set.price));
+                        $('.inventory_left_content').append(SET);
+
+                    }
+            
+                }
+                
+                $('<button class="load_more table_page_button casino_loading" style=""><span>load more</span></button>').insertAfter('.inventory_left_content');
+                $(".total_offers").html($(".inventory_left_content > div").length + ' of ' + items_count);
+                items_loading = false;
+
+            } else {
+                $('.casino_loading').remove();
+        
+            }
+        },
+        error : err => {
+            
+            items_loading = false;
+            console.log(err.responseText);
+        }
+    });
+}
+
+$(document).on('click', '.casino_loading', function() {
+    if(items_count - items_offset > 0) {
+        items_filter();
+    }
+})
+
+$(document).ready(function() {
+    if(DEPOSIT) {
+        connect();
+        loadLeft();
+    } else {
+        loadItems();
+        checkBotTrades();
+        connect();
+    }
+    width = $(window).width();
+    if (width <= 1301) {
+      var bascket = $(".inventory_trigger_button");
+    } else {
+      var bascket = $(".inventory_right");
+    }
+    $(window).resize(function() {
+      width = $(window).width();
+      if (width <= 1301) {
+        var bascket = $(".inventory_trigger_button");
+      } else {
+        var bascket = $(".inventory_right");
+      }
+    });
+
+    $(document).on('click', '.inventory_left_content .inventory_item', function() {
+    
+        var item_id = $(this).attr('item-id');
+    
+        
+    
+        if($(this).hasClass('selected')) {
+            
+            $(this).removeClass('selected');
+            $('.deposit_cart_content').find('.inventory_item[item-id="'+item_id+'"]').remove();
+    
+        } else {
+
+            $('.select_cart').show();
+            $('.trades_cart').hide();
+    
+            if($('.deposit_cart_content .inventory_item').length < 4) {
+                
+                var item = JSON.parse($(this).attr('item-info'));
+              
+                if(item.price > 0) {
+                    
+                    var that = $(this).find('img');
+                    var w = that.width();
+                    that.clone().css({'width' : w, 'position' : 'absolute', 'z-index' : '9999', top: that.offset().top, left:that.offset().left}) .appendTo("body") .animate({opacity: 0.05, left: bascket.offset()['left'], top: bascket.offset()['top'],width: 20}, 750, function() { $(this).remove();  });
+                    $('.deposit_cart, .inventory_trigger_button').addClass('adding_proccess');
+                    setTimeout(function() {
+                        $('.deposit_cart, .inventory_trigger_button').removeClass('adding_proccess');
+                    }, 1100);
+                    
+                    var img = item_img.format(item.img, 120, 90);
+                    var nameData = parseName(item.name);
+                    var prefix = nameData.statTrak ? 'StatTrak' : '';
+                    var weapon = nameData.weapon;
+                    if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                    var skin = nameData.skin ? nameData.skin : '';
+                    var wear = nameData.wear ? nameData.wear : '';
+                    var price = item.price;
+
+    
+    
+                    var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, JSON.stringify(item), price, 'confirm_item');
+                    item_html = $(item_html);
+                    $(item_html).append('<div class="inventory_item_delete"></div>');
+    
+                    $('.select_cart').find($('.deposit_cart_content')).append($(item_html));
+                    $(this).addClass('selected');
+                }
+    
+            }
+    
+        }
+
+        calculate_total();
+    });
+
+    $('.inventory_trigger_button, .deposit_cart_close').click(function() {
+        if($('.inventory_right').hasClass('opened')) {
+            closeWindows();
+        } else  {
+            closeWindow('#deposit_confrim_window');
+            $('body').addClass('windowed');
+        }
+        $('.inventory_right').toggleClass('opened');
+        $('.inventory_page .inventory').toggleClass('overflow');
+        $('.inventory_trigger_button').toggleClass('active');  
+    });
+
+
+    $(document).on('keyup paste', '#filter', function() {
+        
+        clearTimeout(typingTimer);
+
+        
+        typingTimer = setTimeout(() => {
+            items_limit = items_limit_default;
+            items_offset = 0;
+            $('.inventory_left_content').html('');
+            if(items_sort == 'default') items_sort = 'desc';
+            items_filter()
+        }, doneTypingInterval);
+        
+    });
+
+    $("#filterD").on("keyup", function() {
+        doFilterD();
+    });    
+
+
+        $("#orderBy").change(function() {
+            first_sort = false;
+            var o = $(this).val();
+            if(o == 2) items_sort = 'asc';
+            else items_sort = 'desc';
+
+            items_limit = items_limit_default;
+            items_offset = 0;
+
+            $('.inventory_left_content').html('');
+            items_filter();
+
+        });
+
+        $("#orderByD").change(function() {
+            first_sort = false;
+            var o = $(this).val();
+            
+            filter_type = o;
+            doFilterD();
+        });
+
+        $("#sortPrice").change(function() {
+            var o = $(this).val();
+            
+            var sortprice = o.split('#');
+            price_min = sortprice[0];
+            price_max = sortprice[1];
+            
+            items_limit = items_limit_default;
+            items_offset = 0;
+            $('.inventory_left_content').html('');
+            items_filter();
+
+        });
+
+        $("#max_add_price").change(function() {
+            var o = $(this).val();
+            
+            max_add_percent = o;            
+            items_limit = items_limit_default;
+            items_offset = 0;
+            $('.inventory_left_content').html('');
+            items_filter();
+
+        });
+
+});
+
+$(document).on('click', '.item_bundle', function(e) {
+
+    if(!$(e.target).hasClass('bundle_close')) {
+        var data = $(this).attr('trade_data');
+        var data = JSON.parse(data);
+        if(data.status == 0) {
+            showPending(data);
+        }
+     //   console.log('aaa')
+    }
+
+})
+
+var trade_tmp = '<div class="item_bundle" amount={7} trade_id="{1}" trade_data=\'{0}\'>';
+trade_tmp += '<div class="bundle_close deposit_active_cancel" trade_id="{1}" status="{8}"  tid="{1}"></div>';
+trade_tmp += '<div class="item_bundle_guns">{3}</div>'
+trade_tmp += '<div class="item_bundle_side {5}">';
+trade_tmp += '<h4>CS:GO</h4><h3>Item bundle x{4}</h3><h2>{2}</h2>';
+trade_tmp += '<div class="item_bundle_status {5}">{6}</div>';
+trade_tmp += '</div>';
+trade_tmp += '</div>';
+
+
+                      
+
+               
+
+
+var trade_ready_tmp = '<div class="item_bundle" amount={3} trade_id="{1}" trade_data=\'{0}\'>';
+trade_ready_tmp += '<div class="bundle_close deposit_active_cancel" trade_id="{1}" status="{4}" tid="{1}"></div>';
+trade_ready_tmp += '<div class="item_bundle_guns">{2}</div>'
+trade_ready_tmp += '<div class="item_bundle_side">';
+trade_ready_tmp += '<div class="item_bundle_status waiting">';
+trade_ready_tmp += '<div class="item_loader_spin"><div class="item_loader_spin_body"></div></div><h3>Are you ready to trade?</h3><span class="timer_trade"></span>';
+trade_ready_tmp += '</div>';
+trade_ready_tmp += '<div class="item_bundle_status"><button class="send ready_to_trade" trade_id="{1}">Yes, Im ready</button></div>';
+trade_ready_tmp += '</div>';
+trade_ready_tmp += '</div>';
+
+var trade_item_tmp = '<div class="item_bundle_guns_unit"><img style="width: 80px;" src="{0}" alt="Bundle item"></div>';
+var trade_item_empty_tmp = '<div class="item_bundle_guns_unit empty"></div>';
+
+
+function deposit_trade(trade) {
+        var json_string = JSON.stringify(trade)
+        var trade_items = trade.items;
+        var trade_items_html = '';
+        for(m = 0; m < 4; m++) {
+
+            if(trade_items[m] !== undefined) {
+
+
+                var itemData = trade_items[m];
+                $('.inventory_left_content').find('.inventory_item[item-id="'+itemData.assetid+'"]').remove();
+                var item = trade_item_tmp.format(itemData.img);
+                trade_items_html += item;
+
+            } else {
+
+                trade_items_html += trade_item_empty_tmp;
+
+            }
+
+        }
+
+        var text = trade.amount;
+        var class_status = 'waiting'
+        var status_html = '';
+
+       // console.log('TRADE STATUS', trade.status)
+        switch(parseInt(trade.status)) {
+
+            case 0:
+                    status_html = ' <div class="item_loader_spin"><div class="item_loader_spin_body"></div></div><h3>Waiting for the buyer...</h3><span class="timer_trade"></span>';
+                break;
+            case 1:
+                    class_status = 'done'
+                    status_html = '<button trade_id="'+trade.id+'" status="'+trade.status+'" class="send open_trade">confirm</button>';
+                break;
+            case 2: case -2: case -3: case -4: case -5: case -6: case -7: case -8: case -99: case -10:
+                    text = 'Trade canceled';
+                    class_status = 'done';
+                    status_html = '<button trade_id="'+trade.id+'" status="'+trade.status+'" class="send open_trade">confirm</button>';
+                break;
+            case 3: case 4:
+                class_status = 'done'
+                class_status = 'done';
+                status_html = '<button trade_id="'+trade.id+'" status="'+trade.status+'" class="send open_trade">Send trade</button>';
+                break;
+            case 7:
+                class_status = ''
+                class_status = '';
+                status_html = '';
+                break;    
+
+        }
+
+
+        if(trade.status == 7) {
+            var trade_html = trade_ready_tmp.format(json_string, trade.id, trade_items_html, trade.amount, trade.status);
+        } else  {
+            var trade_html = trade_tmp.format(json_string, trade.id, text, trade_items_html, trade_items.length, class_status, status_html, trade.amount, trade.status);
+        }
+
+        if($('.trades_cart').find($('.item_bundle[trade_id="'+trade.id+'"]')).length != 0) {
+
+            var data = $('.trades_cart').find($('.item_bundle[trade_id="'+trade.id+'"]')).attr('trade_data');
+            data = JSON.parse(data);
+
+            if(data.status == 0 && trade.status != 0 && trade.status != 2) {
+                $('.trades_cart').find($('.item_bundle[trade_id="'+trade.id+'"]')).remove();
+                $('.trades_cart').find('.deposit_cart_row_box').prepend($(trade_html));
+            } else {
+                $('.trades_cart').find($('.item_bundle[trade_id="'+trade.id+'"]')).replaceWith($(trade_html))
+            }
+
+            
+        } else {
+            if(trade.status != 0) {
+                $('.trades_cart').find('.deposit_cart_row_box').prepend($(trade_html));
+            } else {
+                $('.trades_cart').find('.deposit_cart_row_box').append($(trade_html));
+            }
+        }
+
+        if((trade.status == 0 || trade.status == 7) && trade.timer == true) {
+            var timer = $(document).find($('.item_bundle[trade_id="'+trade.id+'"]')).find('.timer_trade');
+            timers['timer' + trade.id] = setInterval(function() {
+                updateClock('', trade.time, timer, timers['timer' + trade.id], 'withdraw')
+            }, 1000);
+        } else {
+            if(timers['timer' + trade.id] !== undefined) {
+                clearInterval(timers['timer' + trade.id]);
+            }
+        }
+
+        calculate_total_trades();
+}
+
+function calculate_total_trades() {
+    var tt = 0;
+    $(document).find($('.item_bundle')).each(function() {
+        tt += parseInt($(this).attr('amount'));
+    });
+    $('.trades_total').html(tt);
+}
+
+function deposit_trades(trades) {
+
+
+  //  console.log('deposit_trades', trades);
+
+    for (var i = 0; i < trades.length; i++) {
+
+
+        var trade = trades[i];
+        deposit_trade(trade);
+
+    }
+
+}
+
+function open_trade_func(el) {
+    var status = $(el).attr('status');
+    var tid = $(el).attr('trade_id');
+    var trade_data = $('.trades_cart').find($('.item_bundle[trade_id="'+tid+'"]')).attr('trade_data');
+  //  console.log(trade_data);
+    var trade_data = JSON.parse(trade_data);
+
+    open_trade = tid;
+
+    switch(parseInt(status)) {
+        case 1:
+            _SOCKET_TRADE_COMPLETE(trade_data, 2, true)
+        break;
+        case 2: case -2: case -3: case -4: case -5: case -6: case -7: case -8: case -99: case -10: 
+            _SOCKET_DEPOSIT_CANCELED(trade_data, 1, true);
+        break;
+        case 3:
+            _SOCKET_TRADE_ACCEPTED(trade_data, true);
+        break;
+        case 4:
+            _SOCKET_TRADE_SENT_SENDER(trade_data, true);
+        break;
+    }
+    
+    $('.inventory_right').toggleClass('opened');
+    $('.inventory_page .inventory').removeClass('overflow');
+    $('.inventory_trigger_button').toggleClass('active'); 
+}
+
+$(document).on('click', '.open_trade', function() {
+    open_trade_func($(this));
+})
+ 
+function loadLeft(opts, captcha) {
+
+    var url = "/scripts/p2p_test/get_inv";
+    $('.inventory_left_content').html('')
+    $.ajax({
+        "url": url + "?" + (opts ? opts : ''),
+        success: function(data) {
+            $('.p2p_refresh_button').show();
+            try {
+                data = JSON.parse(data);
+                if (data.items == '' && opts != 'nocache' && DEPOSIT) {
+                    setTimeout(function() {loadLeft('nocache');}, 3000);
+                    return;
+                }
+                if (data.success) {
+
+                    var items = data.items;
+                    for (var i = 0; i < items.length; i++) {
+
+                        if (items[i] != undefined) {
+
+                            var item = items[i];
+
+                            var img = item_img.format(item.img, 120, 90);
+                            var nameData = parseName(item.name);
+                            var prefix = nameData.statTrak ? 'StatTrak' : '';
+                            var weapon = nameData.weapon;
+                            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                            var skin = nameData.skin ? nameData.skin : '';
+                            var wear = nameData.wear ? nameData.wear : '';
+                            var price = item.price;
+                            var cl = price;
+
+                            if(price == 0) {
+                                //price = item.reject;
+                                cl = item.reject;
+                            }
+
+
+                            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, JSON.stringify(item), cl);
+
+                            $('.inventory_left_content').append($(item_html));
+
+                        }
+
+                    }
+
+                    doFilterD();
+
+                    deposit_trades(data.trades);
+                                    
+                } else {
+                    alerts.notify(data.error, 'Error', 'error', true);
+                }
+
+            } catch (err) {
+                alerts.notify(err.message, 'Error', 'error', true);
+            }
+        },
+        error: function(err) {
+            $('.p2p_refresh_button').show();
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        },
+    });
+}
+
+$(document).on('click', '.window_close', function() {
+    open_trade = false;
+    closeWindows();
+})
+
+function confirm(id) {
+    $.ajax({
+        "url": "/scripts/p2p_test/confirm",
+        type: "POST",
+        data: {
+            id: id
+        },
+        success: function(data) {
+            try {
+                data = JSON.parse(data);
+                if (data.success) {  
+                    $(document).find($('.item_bundle[trade_id="'+id+'"]')).remove();  
+                    calculate_total_trades()            
+                    closeWindows();
+                } else {
+                    alerts.notify(data.error, 'Error', 'error', true);
+                }
+            } catch (err) {
+                //console.log(err)
+                alerts.notify(err.message, 'Error', 'error', true);
+            }
+        },
+        error: function(err) {
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        },
+    });
+}
+
+
+
+$(document).on('click', '#deposit_btn', function() {
+
+    if($('.deposit_cart_content .inventory_item').length > 0) {
+        
+        $('.inventory_right').toggleClass('opened');
+        $('.inventory_page .inventory').toggleClass('overflow');
+        $('.inventory_trigger_button').toggleClass('active');
+        $('#deposit_confrim_window').find('.window_edit_items').html('');
+
+        var total = $('#deposit_total').html();
+        $('.deposit_cart_content .inventory_item').each(function() {
+            var item = JSON.parse($(this).attr('item-info'));
+            
+            var img = item_img.format(item.img, 120, 90);
+            var nameData = parseName(item.name);
+            var prefix = nameData.statTrak ? 'StatTrak' : '';
+            var weapon = nameData.weapon;
+            if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+            var skin = nameData.skin ? nameData.skin : '';
+            var wear = nameData.wear ? nameData.wear : '';
+            var price = item.price;
+
+            if(price == 0) price = item.reject;
+
+
+            var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, JSON.stringify(item), price, 'confirm_item');
+            item_html = $(item_html);
+            $(item_html).prepend('<span class="item_edit_trigger item_edit" item-id="'+item.assetid+'">Edit</span>');
+
+            $('#deposit_confrim_window').find('.window_edit_items').append($(item_html));
+
+        });
+
+        $('#deposit_confrim_window').find('.total').html(total);
+        modal('#deposit_confrim_window');
+
+    }
+
+})
+
+$(document).on('click', '.item_edit', function() {
+
+    $('#edit_price').find('.window_edit_items').html('');
+
+    var item_id = $(this).attr('item-id');
+   // console.log(item_id);
+    var item = JSON.parse($('#deposit_confrim_window').find('.inventory_item[item-id="'+item_id+'"]').attr('item-info'));
+    var add_price = $('#deposit_confrim_window').find('.inventory_item[item-id="'+item_id+'"]').attr('add-price');
+
+    var img = item_img.format(item.img, 120, 90);
+    var nameData = parseName(item.name);
+    var prefix = nameData.statTrak ? 'StatTrak' : '';
+    var weapon = nameData.weapon;
+    if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+    var skin = nameData.skin ? nameData.skin : '';
+    var wear = nameData.wear ? nameData.wear : '';
+    var price = item.price;
+
+    var item_html = item_confirm_tmp.format(price, item.assetid, img, prefix, weapon, skin, wear, JSON.stringify(item), price, 'confirm_item');
+        item_html = $(item_html);
+
+    $('#edit_price').find('.window_edit_items').append($(item_html));
+    if(typeof edit_range === 'object') {
+        edit_range.destroy();
+        $('.dice_range').replaceWith(`<div class="dice_range">
+          <div class="dice-slider-block">
+            <input class="edit_slider" type="text" value="" />
+          </div>
+        </div>`)
+    }
+
+    function change (data) {
+        
+        var price_text;
+        data = data.from;
+        var new_price = parseInt(price + price / 100 * data);
+        if(data > 0) {
+            price_text = new_price + ' (+' + data + '%)';
+        } else {
+            price_text = new_price;
+        }
+
+        $('#edit_price').find('.inventory_item').find('.inventory_item_cost').html(price_text);
+        $('#edit_price').find('.inventory_item').attr('add-price', data);
+
+    }
+
+    var max_add_price = 40;
+    if(price < 50) max_add_price = 60;
+    if(price > 50 && price <= 100) max_add_price = 40;
+    if(price > 100 && price <= 200) max_add_price = 40;
+    if(price > 200 && price <= 500) max_add_price = 40;
+    if(price > 500 && price <= 1000) max_add_price = 40;
+
+    $(".edit_slider").ionRangeSlider({
+        type: "double",
+        min: 0,
+        max: max_add_price,
+        from: 0,
+        onChange: function (data) {
+            change(data)
+        },
+        onFinish: function(data) {
+            change(data);
+        }
+    });
+    edit_range = $(".edit_slider").data("ionRangeSlider");
+
+        edit_range.update({
+            max: max_add_price
+        });
+    
+    
+    if(add_price > 0) {
+        var price_text = parseInt(price + price / 100 * add_price) + ' (+' + add_price + '%)'
+        $('#edit_price').find('.inventory_item').find('.inventory_item_cost').html(price_text);
+
+        edit_range.update({
+            from: add_price
+        });
+    } else {
+        var price_text = parseInt(price + price / 100 * add_price) + ' (+' + add_price + '%)'
+        $('#edit_price').find('.inventory_item').find('.inventory_item_cost').html(price_text);
+
+        edit_range.update({
+            from: 0
+        });
+    }
+
+    $('.cancel_edit').on('click', function() {
+        closeWindow('#edit_price');
+        calculate_deposit_price();
+    });
+
+    $('.confirm_edit').on('click', function() {
+           var add_new = $('#edit_price').find('.inventory_item').attr('add-price');
+           var item_id = $('#edit_price').find('.inventory_item').attr('item-id');
+           var add_price = $('#deposit_confrim_window').find('.inventory_item[item-id="'+item_id+'"]').attr('add-price', add_new);
+
+           var price_text = parseInt(price + price / 100 * add_new) + (add_new > 0 ? ' (+' + add_new + '%)' : '');
+           $('#deposit_confrim_window').find('.inventory_item[item-id="'+item_id+'"]').find('.inventory_item_cost').html(price_text);
+           closeWindow('#edit_price');
+           calculate_deposit_price();
+    })
+
+    modal('#edit_price');
+
+});
+
+function calculate_deposit_price() {
+    var fullprice = 0;
+    $('#deposit_confrim_window').find('.inventory_item').each(function() {
+        var item = JSON.parse($(this).attr('item-info'));
+        var price = item.price;
+        var add_price = $(this).attr('add-price');
+        var itemPrice = parseInt(price + price / 100 * add_price);
+        fullprice = fullprice + itemPrice;
+    });
+    $('#deposit_confrim_window').find('.total').html(fullprice);
+}
+
+$(document).on('click', '.deposit_cart_content .inventory_item', function() {
+
+    var item_id = $(this).attr('item-id');
+    $(this).remove();
+    $('.inventory_left_content').find('.inventory_item[item-id="'+item_id+'"]').removeClass('selected');
+    calculate_total();
+
+});
+
+function cancel(id) {
+    $.ajax({
+        "url": "/scripts/p2p_test/cancel",
+        type: "POST",
+        data: {
+            id: id
+        },
+        success: function(data) {
+            try {
+                data = JSON.parse(data);
+                if (data.success) {
+                     //$(document).find($('.item_bundle[trade_id="'+id+'"]')).remove();   
+           
+                } else {
+                    alerts.notify(data.error, 'Error', 'error', true);
+                }
+            } catch (err) {
+                 alerts.notify(err.message, 'Error', 'error', true);
+            }
+        },
+        error: function(err) {
+            alerts.notify(err.responseText, 'Error', 'error', true);
+        },
+    });
+}
+
+function calculate_total() {
+    var price = 0;
+    $('.deposit_cart_content .inventory_item').each(function() {
+        var item = JSON.parse($(this).attr('item-info'));
+        price += item.price;
+    });
+
+    $('#deposit_total').html(price)
+    $('.deposit_counter').html($('.deposit_cart_content .inventory_item').length + '/4')
+
+    if($('.deposit_cart_content .inventory_item').length == 0) {
+        $('.select_cart').hide();
+        $('.trades_cart').show();
+    }
+}
+
+function cart_clear() {
+    $('.deposit_cart_content .inventory_item').each(function() {
+        var item_id = $(this).attr('item-id');
+        $(this).remove();
+        $('.inventory_left_content').find('.inventory_item[item-id="'+item_id+'"]').removeClass('selected');
+    });
+    calculate_total();
+}
+
+$(document).on('click', '.deposit_cart_clear', function() {
+    cart_clear();
+});
+
+$(document).on('click', '#deposit_confirm_button', function() {
+    deposit()
+});
+
+function getTimeRemaining(endtime) {
+  var t = endtime - Math.floor(Date.parse(new Date()) / 1000);
+  var seconds = Math.floor(t % 60);
+  var minutes = Math.floor((t / 60) % 60);
+  return {
+    'total': t,
+    'minutes': minutes,
+    'seconds': seconds
+  };
+}
+
+$(document).on("click", '.deposit_active_cancel', function() {
+    var id = $(this).attr('tid');
+    var status = $(this).attr('status');
+    if(status == 2 || status == -2 || status == -3 || status == -4 || status == -5 || status == -6 || status == -7 || status == -8 || status == -99 || status == -10 || status == 1 || status == 3 || status == 4) {
+        open_trade_func($(this));
+    } else {
+        cancel(id);
+    }
+});
+
+function newInterval(element, et, type) {
+    clearInterval(add_interval);
+    add_end = et;
+    add_interval = setInterval(function() {
+        updateClock(istatus, add_end, element, add_interval, type, true);
+    }, 1000);
+}
+
+function updateClock(i, endtime, element, interval, type, status) {
+    var t = getTimeRemaining(endtime);
+    if(t.minutes == 1 && t.seconds == 0  && type == 'trade_accepted') sound_notify.play();
+    
+    if (t.total <= 0) {
+      
+        $(element).html("Wait a while");
+        return clearInterval(interval);
+    }
+
+    $(element).html(('0' + t.minutes).slice(-2) + ':' + ('0' + t.seconds).slice(-2));
+    
+}
+
+$(document).on('click', '.p2p_refresh_button', function() {
+    $('.p2p_refresh_button').hide();
+    $('.total_inv').html('Loading..')
+    loadLeft('nocache');
+})
+
+$(document).on('click', '.on_off', function() {
+
+    if($('.on_off').hasClass('toggled')) customprice = 0;
+    else customprice = 1
+
+    items_limit = items_limit_default;
+    items_offset = 0;
+
+    $('.inventory_left_content').html('');
+    items_filter();
+
+
+})
+
+
+
+

@@ -1,0 +1,104 @@
+function modal(el, close_windows, nocenter) {
+	if(close_windows) $('.window').removeClass('opened');
+	var modal_window = $(el);
+	$('body').addClass('scrollable');
+	$('body').addClass('windowed');
+	$(modal_window).addClass('opened');
+	if(nocenter !== true) windowCenterer(modal_window);
+}
+
+function open_custom_modal(modal, close_callback, create_callback) {
+
+  if(!close_callback) close_callback = function() {};
+
+  $('body').addClass('scrollable');
+  $('body').addClass('windowed');
+
+  var modal = $(modal);
+  var id = modal.attr('id');
+
+  $('body').append(modal);
+
+  $('#' + id).find('.modal__close').on('click', function() {
+
+    $(modal).remove();
+    if($('.window.opened').length == 0) {
+		$('body').removeClass('scrollable');
+		$('body').removeClass('windowed');
+	}
+
+    close_callback();
+
+  });
+
+  if(create_callback) create_callback();
+  windowCenterer('#' + id);
+  
+}
+
+function windowCenterer(windowId) {
+  let currentScrollTop = $(this).scrollTop();
+  let currentWindowHeight = (($(windowId).outerHeight(true)) / 75) * 100;
+  let currentPageHeight = $(document).outerHeight(true);
+  let currentBrowserHeight = window.innerHeight;
+
+  if ((currentBrowserHeight - currentWindowHeight) > 150) {
+    let newWindowOffset = currentScrollTop + ((currentBrowserHeight - currentWindowHeight) / 2);
+    $(windowId).css({ top: newWindowOffset + 'px' });
+  } else {
+    let newWindowOffset = currentScrollTop + 100;
+    $(windowId).css({ top: newWindowOffset + 'px' });
+  }
+}
+
+
+$(document).on('click', '.window_close', function() {
+	var close = $(this).attr('close');
+	closeWindow(close);
+});
+
+function closeWindows() {
+    $('.window.opened').removeClass('opened');
+    $('body').removeClass('scrollable');
+    $('body').removeClass('windowed');
+}
+
+function closeWindow(close) {
+    $(close).removeClass('opened');
+	if($('.window.opened').length == 0) {
+		$('body').removeClass('scrollable');
+		$('body').removeClass('windowed');
+	}
+}
+
+$(document).on('click', '.window_close_btn', function() {
+	var close = $(this).attr('close');
+	$(close).removeClass('opened');
+	if($('.window.opened').length == 0) {
+		$('body').removeClass('scrollable');
+		$('body').removeClass('windowed');
+	}
+});
+
+$(document).on('click', '#sign_in', function(e) {
+	e.preventDefault();
+	modal('.sign_in');
+});
+
+$(document).on('click', '#create_account_window', function(e) {
+	e.preventDefault();
+	modal('.create_an_account', true);
+});
+
+$(document).on('click', '#get_myid, #get_myid_nav', function() {
+    modal('.get_my_id');
+});
+
+
+$(document).on('click', '.redeem_click', function() {
+    modal('.code_activation');
+});
+
+$(document).on('click', '#t_bot', function() {
+    modal('.connect_telegram');
+});

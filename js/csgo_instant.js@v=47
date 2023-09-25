@@ -1,0 +1,489 @@
+    
+    console.log(LNG);
+
+    String.prototype.formatObject = function(object) {
+        var a = this;
+        for (const [key, value] of Object.entries(object)) {
+                                        
+            a = a.replace(new RegExp("\\{" + key + "\\}", 'g'), value);
+            
+        }
+        return a
+    }
+
+    var withdraw_confirm_tmp;
+    var trade_button_tmp;
+    var trade_waiting_tmp;
+
+    $(document).ready(function() {
+
+        withdraw_confirm_tmp = `<div class="window window_exchange opened" id="instant_confirm_window" style="max-width: 804px; height: fit-content; ">
+                <div class="window_close default modal__close"></div>
+                <h3 class="window_main_title">Withdraw <span class="window_total_coins">Total <span class="total">{price}</span></span>
+            </h3>
+            <div class="window_box default_box">
+              <div class="window_edit_items">
+                {item}
+              </div>
+              <div class="window_deposit_options">
+                <div class="window_field_item default_form_field">
+                  <h3>${LNG['insert_tradelink']} (<a href="https://steamcommunity.com/id/me/tradeoffers/privacy#trade_offer_access_url" target="_blank">${LNG['insert_tradelink_find']}</a>)</h3>
+                  <input type="text" id="instant_tradeurl" value="{tradeurl}" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=176699358&token=L3FbRn_g">
+                </div>
+              </div>
+              <div class="window_double_buttons" style="margin-bottom: 20px;">
+                <button type="button" name="button" id="withdrawButton" class="window_default_green_button_inline" item_id="{item_id}" price="{price}" >${LNG['instant_confirm']}</button>
+                <button type="button" name="button" class="modal__close window_default_gray_button window_close_btn">${LNG['instant_cancel']}</button>
+              </div>
+            </div>
+          </div>`;
+
+          trade_button_tmp = '<a href="{trade_link}" class="open_offer" target="_blank"><button type="button" name="button" class="window_default_green_button_inline">'+LNG['instant_open_trade']+'</button></a>';
+
+          trade_waiting_tmp = `<div class="window window_exchange active_p2p_exchange opened" id="withdraw_wait" withdraw_id="{withdraw_id}" status="{status}">
+            <div class="window_close default modal__close"></div>
+            <h3 class="window_main_title">CSGO Withdraw <span class="window_total_coins">Всего: <span class="total">{price}</span></span>
+            </h3>
+            <div class="window_box default_box">
+              <div class="window_edit_items">
+                {item}
+              </div>
+              <h3 class="{status_class}">{status_text}</h3>
+              <p class="window_timer_article">{status_text_2}</p>
+              {button}
+            </div>
+          </div>`;
+
+        check_active_withdraw();
+        get_tradeurl();
+        loadItems(filterParams.page);
+
+    });
+
+    function check_active_withdraw() {
+
+        axios({
+            url: '/scripts/csgo_instant/active_withdraw',
+            method: "GET"
+        }).then(function(result) {
+
+        
+            var response = result.data;
+            if(response.success === true) {
+
+                if(response.withdraw != false) {
+                    show_trade(response.withdraw);
+                    clearInterval(check_withdraw_interval);
+                    check_withdraw_interval = setInterval(function() {
+                        
+                        withdraw_status(response.withdraw.id);
+
+                    }, 5 * 1000);
+                }
+                
+            } else {
+
+                alerts.notify(response.error, 'Error', 'error');
+
+            }
+    
+        }).catch(function(err) {
+            
+            alerts.notify(err.message, 'Error', 'error');
+            
+        });        
+
+    }
+
+    var filterParams = {
+        page: 1,
+        price_max: false,
+        price_min: false,
+        search: false,
+        sort: 'price_asc',
+    }
+    var tradeurl = '';
+    var check_withdraw_interval;
+
+    var item_template = `<div class="inventory_item {class}" item_data='{item_data}'>
+      <span class="inventory_item_cost">{price}</span>
+      <div class="inventory_item_pic">
+        <img src="{img}" alt="{weapon}">
+      </div>
+      <div class="inventory_item_description instant_item_description">
+        <span class="inventory_item_prefix">{prefix}</span>
+        <span class="inventory_item_label">{weapon}</span>
+        <span class="inventory_item_name">{skin}</span>
+        <span class="inventory_item_category">{wear}</span>
+      </div>
+      <div class="instant_items_count">
+        <span>{count}</span>
+      </div>
+    </div>`;
+
+    function loadItems(next_page) {
+
+        var data = {
+            page: next_page,
+            sort: filterParams.sort
+        };
+
+        if(filterParams.price_min != false) data.price_min = filterParams.price_min;
+        if(filterParams.price_max != false) data.price_max = filterParams.price_max;
+        if(filterParams.search != false) data.search = filterParams.search;
+
+        if(next_page == 1) $('.inventory_left_content').html('');
+        $('.load_more').remove();
+        
+        axios({
+            url: '/scripts/csgo_instant/items',
+            method: "GET",
+            params: data
+        }).then(function(result) {
+
+        
+            var response = result.data;
+            if(response.success === true) {
+
+                response.items.forEach(item => {
+
+                    var name = item.name;
+                    var price = item.price;
+                    var img = item.img;
+                    var count = item.total_count;
+
+                    var nameData = parseName(name);
+                    var prefix = nameData.statTrak ? 'StatTrak' : '';
+                    var weapon = nameData.weapon;
+                    if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+                    var skin = nameData.skin ? nameData.skin : '';
+                    var wear = nameData.wear ? nameData.wear : '';
+
+                    var total_count = '';
+                    if(item.total_count > 1) total_count = 'x' + item.total_count;
+
+                    var item_html = item_template.formatObject({
+                        price: price,
+                        img: img + '/120fx90f',
+                        prefix: prefix,
+                        weapon: weapon,
+                        skin: skin,
+                        wear: wear,
+                        item_data: JSON.stringify(item),
+                        class: 'instant_item',
+                        count: total_count
+                    });
+
+                    $('.inventory_left_content').append(item_html);
+
+                }); 
+
+                $('.total_offers').html(response.total_count);
+                filterParams.page = response.page;
+                $('<button class="load_more table_page_button casino_loading" style=""><span>load more</span></button>').insertAfter('.inventory_left_content');
+
+            } else {
+
+                alerts.notify(response.error, 'Error', 'error');
+
+            }
+    
+        }).catch(function(err) {
+            
+            alerts.notify(err.message, 'Error', 'error');
+            
+        });
+
+    }  
+
+    function get_tradeurl() {
+
+        axios({
+            url: '/scripts/csgo_instant/tradeurl',
+            method: "GET"
+        }).then(function(result) {
+
+        
+            var response = result.data;
+            if(response.success === true) {
+
+                tradeurl = response.tradeurl;
+
+            } else {
+
+                alerts.notify(response.error, 'Error', 'error');
+
+            }
+    
+        }).catch(function(err) {
+            
+            alerts.notify(err.message, 'Error', 'error');
+            
+        });
+
+    }   
+
+    $(document).on('click', '.pagination__item', function() {
+
+        if(loading == false) {
+
+            var next_page = $(this).attr('page');
+            loadItems(next_page);
+
+        }
+
+    });     
+
+
+    var updateSearchTimeout;
+
+    $(document).on('keyup', '#filter', function() {
+
+        filterParams.search = $(this).val().toLowerCase().replace(' ', '').replace('|', '').replace('-', '').replace('(', '').replace(')', '');
+
+        clearTimeout(updateSearchTimeout);
+
+        updateSearchTimeout = setTimeout(() => {
+            
+            loadItems(1);
+
+        }, 500);
+
+    });
+
+    $(document).on('click', '.load_more', function() {
+        loadItems(filterParams.page + 1);
+    }) 
+
+    $(document).ready(function() {
+
+        $("#orderBy").change(function() {
+            
+            var sort = $(this).val();
+
+            console.log('change', sort);
+
+            filterParams.sort = sort;
+            loadItems(1);
+
+        });
+
+        $("#sortPrice").change(function() {
+            
+            var price = $(this).val().split('#');
+            var from = price[0] == '0' ? false : price[0];
+            var to = price[1] == '0' ? false : price[1];
+            filterParams.price_min = from;
+            filterParams.price_max = to;
+            loadItems(1);
+
+        });
+
+    });    
+
+    
+
+  $(document).on('click', '.instant_item', function() {
+
+    var item = JSON.parse($(this).attr('item_data'));
+    var name = item.name;
+    var price = item.price;
+    var img = item.img;
+    var count = item.total_count;
+
+    var nameData = parseName(name);
+    var prefix = nameData.statTrak ? 'StatTrak' : '';
+    var weapon = nameData.weapon;
+    if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+    var skin = nameData.skin ? nameData.skin : '';
+    var wear = nameData.wear ? nameData.wear : '';
+
+    var item_html = item_template.formatObject({
+        price: price,
+        img: img + '/120fx90f',
+        prefix: prefix,
+        weapon: weapon,
+        skin: skin,
+        wear: wear,
+        item_data: JSON.stringify(item),
+        class: 'confirm_item',
+        count: ''
+    });
+
+    open_custom_modal(withdraw_confirm_tmp.formatObject({
+        item: item_html,
+        price: price,
+        tradeurl: tradeurl,
+        item_id: item.id
+    }))
+
+  });
+
+  $(document).on('click', '#withdrawButton', function() {
+
+        var item_id = $(this).attr('item_id');
+        var price = $(this).attr('price');
+        tradeurl = $('#instant_tradeurl').val();
+
+        var button = $(this);
+        var current_text = $(this).text();
+        $(this).text('Loading..');
+        $(this).prop('disabled', true);
+
+        axios({
+            url: '/scripts/csgo_instant/withdraw',
+            method: "POST",
+            data: {
+                id: item_id,
+                price: price,
+                tradeurl: tradeurl
+            }
+        }).then(function(result) {
+            
+            var response = result.data;
+            if(response.success === true) {
+
+                
+                show_trade(response.withdraw);
+                clearInterval(check_withdraw_interval);
+                check_withdraw_interval = setInterval(function() {
+                    withdraw_status(response.withdraw.id);
+                }, 5 * 1000);
+                
+
+            } else {
+
+                $(button).text(current_text);
+                $(button).prop('disabled', false);
+                alerts.notify(response.error, 'Error', 'error');
+
+            }
+
+        }).catch(function(err) {
+            
+            $(button).text(current_text);
+            $(button).prop('disabled', false);
+            alerts.notify(err.message, 'Error', 'error');
+            
+        }); 
+
+  });
+
+  // window_exchange_failed
+  // window_exchange_successfull
+
+
+
+  function show_trade(data) {
+
+
+        var status = data.status;
+        var id = data.id;
+
+        if($('#withdraw_wait[withdraw_id='+id+']').attr('status') == status) return;
+        $('.window.opened').remove();
+
+        var status_class = '';
+        var status_text = '';
+        var status_text_2 = '';
+        var button = '';
+
+        if(status == 'pending') {
+            status_class = 'window_exchange_successfull';
+            status_text = LNG['instant_waiting_trade'];
+            status_text_2 = LNG['instant_waiting_trade_text'];
+        } else if(status == 'sent') {
+            status_class = 'window_exchange_successfull';
+            status_text = LNG['instant_trade_sent'];
+            status_text_2 = LNG['instant_trade_sent_text'];
+            button = trade_button_tmp.formatObject({
+                trade_link: 'https://steamcommunity.com/tradeoffer/' + data.trade_id
+            });
+        } else if(status == 'accepted') {
+            status_class = 'window_exchange_successfull';
+            status_text = LNG['instant_trade_accepted'];
+            button = '<button type="button" name="button" class="window_default_green_button_inline modal__close">OK</button>'
+        } else if(status == 'canceled') {
+
+            status_class = 'window_exchange_failed';
+            status_text = LNG['instant_withdraw_canceled'];
+            button = '<button type="button" name="button" class="window_default_green_button_inline modal__close">OK</button>'
+
+            if(data.error_message !== undefined) status_text_2 = LNG[data.error_message];
+
+        } 
+
+        var item = data.item;
+        var name = item.name;
+        var price = item.price;
+        var img = item.img;
+        var count = item.total_count;
+
+        var nameData = parseName(name);
+        var prefix = nameData.statTrak ? 'StatTrak' : '';
+        var weapon = nameData.weapon;
+        if(nameData.souvenir == true) weapon = 'Souvenir ' + weapon;
+        var skin = nameData.skin ? nameData.skin : '';
+        var wear = nameData.wear ? nameData.wear : '';
+
+        var item_html = item_template.formatObject({
+            price: price,
+            img: img + '/120fx90f',
+            prefix: prefix,
+            weapon: weapon,
+            skin: skin,
+            wear: wear,
+            item_data: JSON.stringify(item),
+            class: 'confirm_item',
+            count: ''
+        });
+
+        open_custom_modal(trade_waiting_tmp.formatObject({
+            item: item_html,
+            price: price,
+            withdraw_id: id,
+            status: status,
+            status_class: status_class,
+            status_text: status_text,
+            status_text_2: status_text_2,
+            button: button
+        }), function() {
+            clearInterval(check_withdraw_interval);
+        });
+
+        if(status == 'accepted' || status == 'canceled') clearInterval(check_withdraw_interval);
+
+  }
+
+  function withdraw_status(id) {
+
+    axios({
+        url: '/scripts/csgo_instant/status',
+        method: "GET",
+        params: {
+            id: id
+        }
+    }).then(function(result) {
+
+    
+        var response = result.data;
+        if(response.success === true) {
+
+            if(response.withdraw != false) show_trade(response.withdraw);
+            
+        } else {
+
+            clearInterval(check_withdraw_interval);
+            alerts.notify(response.error, 'Error', 'error');
+
+        }
+
+    }).catch(function(err) {
+        
+        clearInterval(check_withdraw_interval);
+        alerts.notify(err.message, 'Error', 'error');
+        
+    }); 
+
+  }
+

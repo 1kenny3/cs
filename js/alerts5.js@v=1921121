@@ -1,0 +1,140 @@
+String.prototype.format = function () {
+	var a = this;
+	for (var k in arguments) {
+		a = a.replace(new RegExp("\\{" + k + "\\}", 'g'), arguments[k]);
+	}
+	return a
+}
+
+function closeAlerts() {
+    
+    $(document).find('.alertsOpened').remove();
+    $('body').removeClass('scrollable');
+    $('body').removeClass('windowed');
+    
+}
+
+function alerts_get_tmp(single, disableButton, loading) {
+  	  var buttons_class = 'window_status_buttons';
+  	  if(single) buttons_class = 'window_status_buttons_single';
+
+	  var alerts_tmp =  '<div class="window window_status opened alertsOpened {0} {5}">';
+	  	  alerts_tmp += '<h3>{1}</h3>';
+        if(loading == true) alerts_tmp += '<div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>';
+	      alerts_tmp += '<p>{2}</p>';
+        if(disableButton == false) {
+    	      alerts_tmp += '<div class="' + buttons_class + '">';
+            alerts_tmp += '<button type="button" name="button" class="confirm">{3}</button>';
+	          if(!single) alerts_tmp += '<button type="button" name="button" class="cancel">{4}</button>';
+	          alerts_tmp += '</div>';
+	      }
+	      alerts_tmp += '</div>';
+
+	  return alerts_tmp;
+ }
+
+  //window_warning
+  //window_success
+  //window_error
+  //window_notify
+
+
+  const alerts = {
+
+    loading: function(text, title, type) {
+      var type_window = 'window_notify';
+      if(type == 'warn') type_window = 'window_warning';
+      if(type == 'success') type_window = 'window_success';
+      if(type == 'error') type_window = 'window_error';
+      var title_text = title ? title : '';
+      var long_class = 'window_warning_wide';
+      var alert_window = alerts_get_tmp(true, true, true);
+      alert_window = alert_window.format(type_window, title_text, text, 'OK', 'CANCEL', long_class);
+      alert_window = $(alert_window);
+
+      $('body').addClass('scrollable');
+      $('body').addClass('windowed');
+      $('body').append($(alert_window));
+      alertCenterer(alert_window);
+    },
+
+
+  	notify: function(text, title, type, long, callback) {
+      var type_window = 'window_notify';
+      if(type == 'warn') type_window = 'window_warning';
+      if(type == 'success') type_window = 'window_success';
+      if(type == 'error') type_window = 'window_error';
+  		var title_text = title ? title : '';
+  		var long_class = long === true ? 'window_warning_wide' : '';
+  		var alert_window = alerts_get_tmp(true, false, false);
+  		alert_window = alert_window.format(type_window, title_text, text, 'OK', 'CANCEL', long_class);
+  		alert_window = $(alert_window);
+  		alert_window.on('click', '.confirm', function() {
+  		    if(callback) callback();
+  			$(alert_window).remove();
+        if($('.window.opened').length == 0) {
+           $('body').removeClass('scrollable');
+           $('body').removeClass('windowed');
+        }
+  		});
+      $('body').addClass('scrollable');
+      $('body').addClass('windowed');
+  	  $('body').append($(alert_window));
+  	  alertCenterer(alert_window);
+  	},
+
+    confirm: function(text, callback, type, title, long, custom_buttons) {
+      console.log(text, callback, type, title, long, custom_buttons)
+      var ok = 'OK';
+      var cancel = 'CANCEL';
+      if(custom_buttons && typeof(custom_buttons) == 'object' && custom_buttons.confirm !== undefined && custom_buttons.cancel !== undefined) {
+          ok = custom_buttons.confirm;
+          cancel = custom_buttons.cancel;
+      }
+      var type_window = 'window_notify';
+      if(type == 'warn') type_window = 'window_warning';
+      var title_text = title ? title : '';
+      var long_class = long === true ? 'window_warning_wide' : '';
+      var alert_window = alerts_get_tmp(false, false, false);
+      alert_window = alert_window.format(type_window, title_text, text, ok, cancel, long_class);
+      alert_window = $(alert_window);
+      $(alert_window).attr('style', "z-index: 99999");
+      alert_window.on('click', '.confirm', function() {
+        callback(true);
+        $(alert_window).remove();
+        if($('.window.opened').length == 0) {
+           $('body').removeClass('scrollable');
+           $('body').removeClass('windowed');
+        }
+      });
+      alert_window.on('click', '.cancel', function() {
+        $(alert_window).remove();
+        if($('.window.opened').length == 0) {
+           $('body').removeClass('scrollable');
+           $('body').removeClass('windowed');
+        }
+        callback(false);
+      });
+      $('body').addClass('scrollable');
+      $('body').addClass('windowed');
+      $('body').append($(alert_window));    
+      alertCenterer(alert_window);
+    }
+
+  };
+  
+  
+function alertCenterer(windowId) {
+  let currentScrollTop = $(this).scrollTop();
+  let currentWindowHeight = (($(windowId).outerHeight(true)) / 75) * 100;
+  let currentPageHeight = $(document).outerHeight(true);
+  let currentBrowserHeight = window.innerHeight;
+
+  if ((currentBrowserHeight - currentWindowHeight) > 150) {
+    let newWindowOffset = currentScrollTop + ((currentBrowserHeight - currentWindowHeight) / 2);
+    $(windowId).css({ top: newWindowOffset + 'px' });
+  } else {
+    let newWindowOffset = currentScrollTop + 100;
+    $(windowId).css({ top: newWindowOffset + 'px' });
+  }
+}  

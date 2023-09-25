@@ -1,0 +1,19 @@
+<svg width="34" height="34" xmlns="http://www.w3.org/2000/svg" fill="none">
+ <mask height="30" width="30" y="2" x="2" maskUnits="userSpaceOnUse" id="mask0_57_1950">
+  <circle id="svg_1" fill="#C4C4C4" r="15" cy="17" cx="17"/>
+ </mask>
+ <defs>
+  <linearGradient y2="1.04688" x2="0.71875" y1="0.09375" x1="0.32813" id="svg_5">
+   <stop stop-opacity="0.99609" stop-color="#d86e6e"/>
+   <stop stop-opacity="0.99609" stop-color="#ffd8d8" offset="0.38542"/>
+   <stop stop-opacity="0.99609" stop-color="#894040" offset="0.48438"/>
+   <stop stop-opacity="0.99609" stop-color="#c65f5f" offset="0.76042"/>
+   <stop stop-opacity="0.99609" stop-color="#fc8383" offset="0.93229"/>
+  </linearGradient>
+ </defs>
+ <g>
+  <title>Layer 1</title>
+  <circle id="svg_2" stroke-width="2" stroke="url(#svg_5)" fill="#C4C4C4" r="16" cy="17.39526" cx="17"/>
+  <g id="svg_3" mask="url(#mask0_57_1950)"/>
+ </g>
+</svg>

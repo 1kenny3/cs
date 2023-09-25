@@ -1,0 +1,378 @@
+"use strict";
+var LANG_SELECT = getCookie('_lang');
+var LNG = [];
+$(document).ready(function() {
+    if (LANG_SELECT != 'ru' && LANG_SELECT != 'en')
+        LANG_SELECT = 'en';
+    if (LANG_SELECT == 'ru') {
+        LNG['ROLL_TIME'] = 'Вращение через %time%...';
+        LNG['APPLY_BET'] = 'Принято ';
+        LNG['APPLY_TOTAL_BETS'] = ' всего ставок...';
+        LNG['ROLL'] = '***ВРАЩЕНИЕ***';
+        LNG['CHAT_HELLO'] = '* Минимальная ставка: %min_bet% монет%min_bet_declination%.<br>* Максимальная ставка: %max_bet% монет%max_bet_declination%.<br>* Кол-во ставок за раунд: %bets_per_roll% став%bets_per_roll_declination%.<br>* Длительность раунда: %roll_cooldown% сек.<br>* Задержка чата: %chat_cooldown% сек.<br>* Общая сумма ставок для общения: (%chat_balance%+ все комнаты, %chat_balance_ru%+ русская комната, %chat_balance_en%+ английская комната).';
+        LNG['COINS'] = ' монет';
+        LNG['SEC'] = ' сек';
+        LNG['BET'] = 'Ставка #';
+        LNG['CONFIRMED'] = ' принята ';
+        LNG['GENERATE_TOKEN'] = 'Генерация токена.';
+        LNG['AUTHORIZATION_STEAM'] = 'Пожалуйста, авторизуйтесь на сайте через Steam.';
+        LNG['SERVER_CONNECT'] = 'Подключение к серверу.';
+        LNG['CONNECTED'] = 'Подключено!';
+        LNG['ERROR_CONNECTION_CLOSED'] = 'Cоединение закрыто. Попробуйте обновить страницу несколько раз.';
+        LNG['CONNECTION_ABORT'] = 'Cоединение разорвано. Попробуйте обновить страницу несколько раз.';
+        LNG['ERROR_NO_TOKEN'] = 'Не получен ключ доступа. Попробуйте обновить страницу несколько раз.';
+        LNG['ALREADY_CONNECTED'] = 'Подключение уже существует. Попробуйте обновить страницу несколько раз.';
+        LNG['OWNER'] = '[Владелец] ';
+        LNG['ADMIN'] = '[Админ] ';
+        LNG['DEV'] = '[Разработчик] ';
+        LNG['MODERATOR'] = '[Модератор] ';
+        LNG['STREAMER'] = '[Стример] ';
+        LNG['VETERAN'] = '[Ветеран] ';
+        LNG['YOUTUBER'] = '[Ютубер] ';
+        LNG['LEGEND'] = '[Легенда] ';
+        LNG['CHANGE_ROOM'] = 'Перешли в комнату: ';
+        LNG['ABOUT_SEND'] = 'Вы собираете отправить ';
+        LNG['COINS_STEAMID'] = ' монет на User ID ';
+        LNG['PLG_STEAMID'] = ' <span class="plg_text_send" style="color: #E164AF;"></span> на User ID ';
+        LNG['YOU_SURE'] = ' - вы уверены?';
+        LNG['CHAT_CLEAR'] = 'Чат очищен!';
+        LNG['YOU_SURE_BET'] = 'Вы уверены, что хотите поставить ';
+        LNG['WARNING_BET'] = ' монет?<br><br><i>Вы можете выключить данное подтверждение в настройках.</i>';
+        LNG['IGNORED'] = ' добавлен в игнор.';
+        LNG['ROLL_NUMBER'] = 'Выпало число ';
+        LNG['CONFIRM_TRADEOFFER'] = 'Подтверждение предложения обмена - пожалуйста подождите...';
+        LNG['CONFIRM_CRYPTO_TRADEOFFER'] = 'Подтверждение обмена - пожалуйста подождите...';
+        LNG['NEW_TRADEOFFER'] = 'Новое предложение обмена!';
+        LNG['OFFER_SEND_TO_BOT'] = '<b>Обмен отправлен боту, ожидайте подтверждения обмена, примерное время ожидания ~';
+        LNG['MINUTES'] = 'секунд.</b>';
+        LNG['NEW_TRADEOFFER_FROM'] = '<b>Новое предложение обмена от';
+        LNG['WITH_SECRETCODE'] = 'с секретным кодом';
+        LNG['ON'] = 'за';
+        LNG['COINS_PLEASE'] = 'монет. Пожалуйста, <a href=\'https://steamcommunity.com/tradeoffer/';
+        LNG['CONFIRM_TRADEOFFER_PLEASE'] = '\' target=\'_blank\' >примите предложение обмена</a>.';
+        LNG['COINS_PLEASE_OPS'] = 'монет. Пожалуйста, <a href=\'https://trade.opskins.com/trade-offers\' target=\'_blank\'>';
+        LNG['CONFIRM_TRADEOFFER_PLEASE_OPS'] = 'примите предложение обмена</a>.';
+        LNG['CHECK_STATUS'] = 'Проверить статус';
+        LNG['SUCCESS'] = 'Завершить';
+        LNG['GET_COINS'] = 'Получить монеты';
+        LNG['LOAD_ITEMS'] = 'Загрузка предметов - пожалуйста подождите...';
+        LNG['BOT'] = 'Бот';
+        LNG['LOADED'] = 'Загружено';
+        LNG['ITEMS'] = 'доступных предметов';
+        LNG['PROCESS_SEND_OFFER'] = 'Процесс отправки предложения обмена - пожалуйста подождите...';
+        LNG['WAIT_BOT'] = 'Ожидание подтверждения от бота';
+        LNG['MESSAGE_DELETE'] = 'сообщение удалено';
+        LNG['FROM_CACHE'] = 'из кэша';
+        LNG['FORCE_RELOAD'] = 'обновить инвентарь';
+        LNG['FULL_LOAD'] = 'CSGOPolygon сервера в данный момент переполнены - пожалуйста, попробуйте позже.';
+        LNG['VERIFIED'] = 'Подлинный',
+        LNG['WINNER'] = 'Победитель',
+        LNG['WAIT_OPPONENT'] = 'Ожидание соперника...',
+        LNG['FLIPPED'] = 'Подбрасывание...',
+        LNG['HASH'] = 'Хэш раунда',
+        LNG['WITH_50_PERCENT_CHANCE'] = 'с <b>50%</b> шансом',
+		LNG['WINNING_PERCENTAGE_AT'] = 'Выигрышный процент найден на ',
+        LNG['WITH_HASH_SALT'] = '% с дополнительным числом ',
+        LNG['NOT_FOUND_GAMES'] = 'Доступных игр в данный момент нет.',
+        LNG['IN_PROGRESS'] = 'ИДЕТ ИГРА',
+        LNG['JOINABLE'] = 'СЫГРАТЬ',
+        LNG['WAIT'] = 'ОЖИДАНИЕ',
+        LNG['SURE_WANT_DEL_COIN'] = 'Вы уверены, что желаете отменить данную игру?',
+        LNG['DELETE'] = 'УДАЛИТЬ',
+        LNG['MAKE_BET'] = 'СДЕЛАТЬ СТАВКУ',
+        LNG['CANCELED'] = 'Отменен',
+        LNG['ONLINE'] = 'ОНЛАЙН',
+        LNG['FROM_NOW'] = ' до начала',
+        LNG['MINUTE_MATCH'] = ' минут',
+        LNG['SECOND_MATCH'] = ' секунд',
+        LNG['HOUR_MATCH'] = ' час',
+        LNG['DAY_MATCH'] = ' день',
+        LNG['DAY_S_MATCH'] = ' дня',
+        LNG['DAY_V_MATCH'] = ' дней',
+        LNG['S_MATCH'] = 'а',
+        LNG['D_MATCH'] = 'ы',
+        LNG['V_MATCH'] = 'ов',
+        LNG['SOON_START'] = 'Скоро',
+        LNG['RESULT'] = 'Результат: ',
+        LNG['YOU_BET_ON'] = 'Вы поставили на',
+        LNG['NO_BETS'] = 'Нет ставок',
+        LNG['ERROR'] = 'Ошибка',
+        LNG['ALERT'] = 'Информация',
+        LNG['SERVER'] = 'Сервер',
+        LNG['DECLINATION_A'] = 'а',
+        LNG['DECLINATION_S'] = 'ы',
+        LNG['DECLINATION_ALL'] = '',
+        LNG['DECLINATION_A_G'] = 'ка',
+        LNG['DECLINATION_S_G'] = 'ки',
+        LNG['DECLINATION_ALL_G'] = 'ок',
+        LNG['CRYPTOCURRENCY_PENDING'] = 'Новое предложение на обмен криптовалюты.<br>Для обмена криптовалюты, Вам необходимо перевести указанную сумму криптовалюты на указанный кошелек.<br>Сумма обмена: <b>%amount%</b> (%amount_coins% монет). Курс обмена: <b>%price%</b>. Кошелек для перевода: <b>%address%</b>',
+        LNG['CRYPTOCURRENCY_NEW_TRANSACTION'] = '<br><b color="red">Входящий баланс на сумма: '
+
+        LNG['PAYMENT_WITHDRAW'] = 'Вывод';
+        LNG['PAYMENT_WITHDRAW_MSG_1'] = 'монет на кошелек'
+        LNG['PAYMENT_WITHDRAW_MSG_2'] = 'В случае указания неправильного номера кошелька средства не возвращаются'
+        LNG['PAYMENT_WITHDRAW_SUCCESS'] = 'Заявка на вывод успешно создана'
+        LNG['PAYMENT_DELETE_CARD'] = 'Удалить карту'
+
+        LNG['CRASH_PLACE_BET'] = 'СДЕЛАТЬ СТАВКУ';
+        LNG['CRASH_CASHOUT'] = 'ВЫВЕСТИ';
+        LNG['CRASH_BET_PLACED'] = 'ВЫ ПОСТАВИЛИ';
+        LNG['CRASH_BETTING'] = 'СТАВИМ';
+        LNG['CRASH_CANCEL'] = '(нажмите для отмены)';
+        
+        LNG['WITHDRAW_ALERT'] = 'Если вы отклоните данный обмен, то монеты, списанные с вашего баланса, не вернутся. Обмен действует 30 минут, если вы не успеете принять обмен, то он будет отклонен и вы потеряете свои монеты!';
+        
+        LNG['LEVEL_PROMO_1'] = 'Ваш аккаунт не подходит под условия активации промокода. <br> Но вы можете активировать промокод и получить бонус за ваш уровень Steam: <br> Уровень 10-15 - 200 монет <br> Уровень 16-20 - 300 монет <br> Уровень 21+ - 500 монет<br><br>';
+        LNG['LEVEL_PROMO_2'] = 'Ваш уровень Steam: %level%. активировать промокод %code% и получить %coins% монет?';
+        
+        LNG['P2P_CONFIRM_D'] = 'После создания заявки на депозит у вас будет <b class="text-primary">10 минут</b> для поиска покупателя, после того, как покупатель будет найден, вы должны будете отправить выбранный(е) предмет(ы) по указанной ссылкк обмена. <br><br> <b style="color: red">Внимание!</b> У вас есть <b class="text-primary">5 минут</b> на отправку обмена. Не отправляйте обмен по истечению этого времени, <b style="color: red">вы рискуете потерять свои предметы.</b><br><br> <b style="color:red">Внимание!</b> Отмените отправленное предложение обмена в STEAM, если оно не было принято покупателем <b style="color:red">через 10 минут с момента начала сделки</b>, иначе <b style="color:red">вы рискуете потерять предметы</b>. Наш сайт покажет вам уведомление, когда необходимо это сделать. <br><br> <b style="color: red">Внимание!</b> Не меняйте настйроки приватности вашего профиля/инвентаря STEAM в ходе обмена, <b style="color: red">иначе вы не получите монеты за обмен!</b>';
+        LNG['P2P_CONFIRM_W'] = '<b style="color: red">Внимание!</b> Если вы скроете инвентарь/профиль Steam во время обмена вы рискуете <b style="color: red">потерять монеты!</b>';
+        
+        LNG['P2P_CONFIRM_CANCEL'] = '<b style="color: red"><i class="fa fa-exclamation-triangle" style="color: red;font-size: 1.5em;"></i> WARNING! <i class="fa fa-exclamation-triangle" style="color: red;font-size: 1.5em;"></i> Отменяя этот обмен вы подтверждаете что вы отменили отправленное предложение обмена в Steam. После нажатия кнопки "OK" этот депозит будет отменен, и монеты за него зачислены не будут! <br><br> Не делайте этого если ваше предложение обмена в steam уже принято покупателем! Вы потеряете свои предметы и не получите монеты!</b>';
+        
+        LNG['P2P_CANCELED_DESC_SENDER'] = [];
+        
+        LNG['P2P_CANCELED_DESC_SENDER']['2'] = '<h3 class="window_exchange_failed">Вы отменили обмен.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-1'] = '<h3 class="window_exchange_failed">Ошибка при создании обмена.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-2'] = '<h3 class="window_exchange_failed">Обмен отменен.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-3'] = '<h3 class="window_exchange_failed">Ваш API ключ больше недействителен. Обмен отменен.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-4'] = '<h3 class="window_exchange_failed">Время на отправку предложения обмена в Steam истекло. Обмен отменен.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-5'] = '<h3 class="window_exchange_failed">Предложение обмена отменено в Steam</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-6'] = '<h3 class="window_exchange_failed">Обмен отменен. Отправление вами предметы не соответствуют созданной заявке.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-7'] = '<h3 class="window_exchange_failed">Ваше предложение обмена было отправлено другому пользователю вместо покупателя. Если вы не отправляли предложение обмена другому пользователю, то возможно мошенники получили доступ к вашему аккаунту Steam. Мы рекомендуем вам сменить пароль и ваш API ключ в Steam.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-8'] = '<h3 class="window_exchange_failed">Предложение обмена отменено в Steam</h3>';
+          
+        LNG['P2P_CANCELED_DESC_RECEIVER'] = [];
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-3'] = "<h3 class='window_exchange_failed'>Предложение обмена отменено в Steam.</h3> <p class='window_timer_article'>Монеты будут возвращены на ваш баланс в течение 2 минут.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-4'] = "<h3 class='window_exchange_failed'>Обмен отменен.</h3> <p class='window_timer_article'>Монеты будут возвращены на ваш баланс в течение 2 минут.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-5'] = "<h3 class='window_exchange_failed'>Предложение обмена отменено в Steam.</h3> <p class='window_timer_article'>Монеты будут возвращены на ваш баланс в течение 2 минут.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-6'] = "<h3 class='window_exchange_failed'>Предложение обмена отменено в Steam.</h3> <p class='window_timer_article'>Монеты будут возвращены на ваш баланс в течение 2 минут.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-7'] = "<h3 class='window_exchange_failed'>Предложение обмена отменено в Steam.</h3> <p class='window_timer_article'>Монеты будут возвращены на ваш баланс в течение 2 минут.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-8'] = "<h3 class='window_exchange_failed'>Предложение обмена отменено в Steam.</h3> <p class='window_timer_article'>Монеты будут возвращены на ваш баланс в течение 2 минут.</p>";
+	    
+	    
+	    LNG['P2P_SELLER_RATE'] = 'Рейтинг продавца. Этот продавец проводит успешно %rate%% обменов. (%success% успешных)';
+	    LNG['P2P_SELLER_RATE_0'] = 'Рейтинг продавца будет доступен когда он совершит больше обменов';
+	    LNG['JACKPOT_CASINO_CLOSE'] = 'Вы уверены, что хотите закрыть уведомление? Вы можете сделать скриншот выигрыша и отправить в наши соцсети.';
+	    
+	    LNG['XRP_TAG'] = 'Внимание! Вы не указали ТЕГ назначения! Убедитесь, что для получения средств вам не нужен ТЕГ. Если для получения средств вам не нужно указыать тег, нажмите ОК, выплата будет произведена без указания ТЕГА.'
+	    
+	    LNG['MM_SIGN'] = 'Подписать транзакцию';
+	    LNG['MM_SIGN_2'] = 'Пожалуйста, подпишите транзакцию в своем кошельке';
+	    LNG['MM_DEP'] = 'Внести ';
+	    LNG['MM_DEP_UID'] = ' для User ID ';
+	    LNG['MM_TX_SENT'] = 'Транзакция отправлена. Депозит будет зачислен в течение 2 минут.';
+	    LNG['MM_TX_SENDING'] = 'Отправляем транзакцию.';
+	    LNG['MM_TX_CHECK'] = 'Проверить транзакцию.';
+	    LNG['MM_UID_CHANGE_WARN'] = 'ВНИМАНИЕ! Если вы измените User ID, то депозит будет зачислен другому пользователю. Изменить User ID?';
+	    LNG['P2P_ATTENTION'] = 'ВНИМАНИЕ';
+        LNG['P2P_WARN'] = 'Отправляйте только указанные в данном обмене скины. Если вы отправите предложение обмена с неверно выбранными предметами - вы потеряете скины и не получите монеты. Мы не сможем отменить этот обмен в Steam за вас.<div style="display: flex;justify-content: center;margin-top: 25px;"><div><div class="default_checkbox"><label class="checkbox"><input type="checkbox" id="p2p_dont_show"><span class="checkbox_title">Больше не показывать это сообщение</span></label></div></div></div>';
+        LNG['P2P_WARN_2'] = '<p style="margin-top:5px">— На сайте нет ботов, все сделки происходят между пользователями сайта</p><p style="margin-top:5px">— Не принимайте входящие предложения обмена, иначе вы потеряете скины и монеты</p><p style="margin-top:5px">— После того как покупатель будет найден, вы получите нужную ссылку для обмена. Не отправляйте никому скины до этого момента.</p><div style="display: flex;justify-content: center;margin-top: 25px;"><div><div class="default_checkbox"><label class="checkbox"><input type="checkbox" id="p2p_dont_show_2"><span class="checkbox_title">Больше не показывать это сообщение</span></label></div></div></div>';
+        LNG['P2P_ATTENTION_PRICE'] = 'Продавец установил высокую наценку на предметы. Проверьте цену предметов в Steam перед тем как совершить вывод.';
+        LNG['P2P_ATTENTION_PRICE_2'] = 'Проверьте цену предметов в Steam перед тем как совершить вывод.';
+        
+        LNG['ERROR_RELOAD'] = 'Ошибка. Обновите страницу';
+        
+        LNG['error_invalid_token'] = 'Указана неверная ссылка на обмен';
+        LNG['error_user_not_tradable'] = 'На вашем аккаунте Steam недоступны обмены.';
+        LNG['error_inventory_private'] = 'Ваш инвентарь Steam скрыт настройками приватности.';
+        
+        LNG['instant_withdraw_canceled'] = 'Вывод отменен!';
+        LNG['instant_trade_accepted'] = 'Обмен принят!';
+        LNG['instant_trade_sent'] = 'Предложение обмена отправлено!';
+        LNG['instant_trade_sent_text'] = 'Примите предложение обмена в Steam';
+        LNG['instant_waiting_trade'] = 'Заявка на вывод создана';
+        LNG['instant_waiting_trade_text'] = 'Отправляем предложение обмена..';
+        
+        LNG['instant_open_trade'] = 'Открыть предложение обмена';
+        LNG['instant_confirm'] = 'Подтвердить';
+        LNG['instant_cancel'] = 'Отмена';
+        
+        LNG['insert_tradelink'] = 'Вставьте свою ссылку на обмен';
+        LNG['insert_tradelink_find'] = 'узнать тут';
+        
+        
+    } else {
+        LNG['ROLL_TIME'] = 'Rolling in %time%...';
+        LNG['APPLY_BET'] = 'Confirming ';
+        LNG['APPLY_TOTAL_BETS'] = ' total bets...';
+        LNG['ROLL'] = '***ROLLING***';
+        LNG['CHAT_HELLO'] = '* Minimum bet: %min_bet% coin%min_bet_declination%.<br>* Maximum bet: %max_bet% coin%max_bet_declination%.<br>* Maximum bets per roll: %bets_per_roll% bet%bets_per_roll_declination%.<br>* Roll cooldown: %roll_cooldown% sec.<br>* Chat cooldown: %chat_cooldown% sec.<br>* Total bet for chat: (%chat_balance%+ all rooms, %chat_balance_ru%+ russian room, %chat_balance_en%+ english room).';
+        LNG['COINS'] = ' coins';
+        LNG['SEC'] = ' sec';
+        LNG['BET'] = 'Bet #';
+        LNG['CONFIRMED'] = ' confirmed ';
+        LNG['GENERATE_TOKEN'] = 'Generating authentication token...';
+        LNG['AUTHORIZATION_STEAM'] = 'Please sign in through Steam to connect.';
+        LNG['SERVER_CONNECT'] = 'Connecting to server.';
+        LNG['CONNECTED'] = 'Connected!';
+        LNG['ERROR_CONNECTION_CLOSED'] = 'Connection closed. Try refreshing the page several times.';
+        LNG['CONNECTION_ABORT'] = 'Connection lost. Try refreshing the page several times.';
+        LNG['ERROR_NO_TOKEN'] = 'Failed to get AT. Try refreshing the page several times.';
+        LNG['ALREADY_CONNECTED'] = 'Existing connection found. Try refreshing the page several times.';
+        LNG['OWNER'] = '[Owner] ';
+        LNG['ADMIN'] = '[Admin] ';
+        LNG['DEV'] = '[Developer] ';
+        LNG['MODERATOR'] = '[Moderator] ';
+        LNG['STREAMER'] = '[Streamer] ';
+        LNG['VETERAN'] = '[Veteran] ';
+        LNG['YOUTUBER'] = '[Youtuber] ';
+        LNG['LEGEND'] = '[Legend] ';
+        LNG['CHANGE_ROOM'] = 'Switched to room: ';
+        LNG['ABOUT_SEND'] = 'You are about to send ';
+        LNG['COINS_STEAMID'] = ' coins to User ID ';
+        LNG['PLG_STEAMID'] = ' <span class="plg_text_send" style="color: #E164AF;"></span> to User ID ';
+        LNG['YOU_SURE'] = ' - are you sure?';
+        LNG['CHAT_CLEAR'] = 'Chat cleared!';
+        LNG['YOU_SURE_BET'] = 'Are you sure you wish to bet ';
+        LNG['WARNING_BET'] = ' coins?<br><br><i>You may disable this confirmation in the settings menu.</i>';
+        LNG['IGNORED'] = ' has been added to ignored.';
+        LNG['ROLL_NUMBER'] = 'Rolled ';
+        LNG['CONFIRM_TRADEOFFER'] = LNG['CONFIRM_CRYPTO_TRADEOFFER'] = 'Awaiting confirmation of the exchange - please wait...';
+        LNG['NEW_TRADEOFFER'] = 'Your tradeoffer has been sent!';
+        LNG['OFFER_SEND_TO_BOT'] = '<b>Exchange sent to the bot, awaiting for confirmation. approximate waiting time ~';
+        LNG['MINUTES'] = 'seconds.</b>';
+        LNG['NEW_TRADEOFFER_FROM'] = '<b>Your offer has been sent from';
+        LNG['WITH_SECRETCODE'] = 'with secret code';
+        LNG['ON'] = 'for';
+        LNG['COINS_PLEASE'] = 'coins. Please, <a href=\'https://steamcommunity.com/tradeoffer/';
+        LNG['CONFIRM_TRADEOFFER_PLEASE'] = '\' target=\'_blank\' >accept the exchange offer</a>.';
+        LNG['COINS_PLEASE_OPS'] = 'coins. Please, <a href=\'https://trade.opskins.com/trade-offers\' target=\'_blank\' >';
+        LNG['CONFIRM_TRADEOFFER_PLEASE_OPS'] = 'accept the exchange offer</a>.';        
+        LNG['CHECK_STATUS'] = 'Check Status';
+        LNG['SUCCESS'] = 'Complete';
+        LNG['GET_COINS'] = 'Get Coins';
+        LNG['LOAD_ITEMS'] = 'Loading items - please wait ...';
+        LNG['BOT'] = 'Bot';
+        LNG['LOADED'] = 'Loaded';
+        LNG['ITEMS'] = 'available items';
+        LNG['PROCESS_SEND_OFFER'] = 'Sending a tradeoffer - please wait...';
+        LNG['WAIT_BOT'] = 'Awaiting confirmation from the bot.';
+        LNG['MESSAGE_DELETE'] = 'Message Deleted';
+        LNG['FROM_CACHE'] = 'from cache';
+        LNG['FORCE_RELOAD'] = 'force reload';
+        LNG['FULL_LOAD'] = 'CSGOPolygon servers are currently full - please try back later.';
+        LNG['VERIFIED'] = 'Verified',
+        LNG['WINNER'] = 'Winner',
+        LNG['WAIT_OPPONENT'] = 'Wait opponent...',
+        LNG['FLIPPED'] = 'Flipped...',
+        LNG['HASH'] = 'Round Hash',
+        LNG['WITH_50_PERCENT_CHANCE'] = 'with <b>50%</b> chance',
+        LNG['WINNING_PERCENTAGE_AT'] = 'Winning percentage found at ',
+        LNG['WITH_HASH_SALT'] = '% with the hash salt of ',
+        LNG['NOT_FOUND_GAMES'] = 'There is currently no available games.',
+        LNG['IN_PROGRESS'] = 'IN PROGRESS',
+        LNG['JOINABLE'] = 'JOINABLE',
+        LNG['WAIT'] = 'WAIT',
+        LNG['SURE_WANT_DEL_COIN'] = 'Are you sure you want to cancel the game?',
+        LNG['DELETE'] = 'DELETE',
+        LNG['MAKE_BET'] = 'BET',
+        LNG['CANCELED'] = 'Canceled',
+        LNG['ONLINE'] = 'ONLINE',
+        LNG['FROM_NOW'] = ' from now',
+        LNG['MINUTE_MATCH'] = ' minute',
+        LNG['SECOND_MATCH'] = ' second',
+        LNG['HOUR_MATCH'] = ' hour',
+        LNG['DAY_MATCH'] = ' day',
+        LNG['DAY_S_MATCH'] = ' days',
+        LNG['DAY_V_MATCH'] = ' days',
+        LNG['S_MATCH'] = 's',
+        LNG['D_MATCH'] = 's',
+        LNG['V_MATCH'] = 's',
+        LNG['SOON_START'] = 'Soon',
+        LNG['RESULT'] = 'Result: ',
+        LNG['YOU_BET_ON'] = 'You bet on',
+        LNG['NO_BETS'] = 'No bets',
+        LNG['ERROR'] = 'Error',
+        LNG['ALERT'] = 'Alert',
+        LNG['SERVER'] = 'Server',
+        LNG['DECLINATION_A'] = '',
+        LNG['DECLINATION_S'] = LNG['DECLINATION_ALL'] = 's',
+        LNG['DECLINATION_A_G'] = '',
+        LNG['DECLINATION_S_G'] = LNG['DECLINATION_ALL_G'] = 's',
+        LNG['CRYPTOCURRENCY_PENDING'] = 'New offer for the exchange of crypto-currencies.<br>To exchange the crypto currency, you need to transfer the specified amount of crypto-currency to the specified purse.<br>Exchange amount: <b>%amount% </b> (%amount_coins% coins). Exchange rate: <b>%price%</b>. Address for transfer: <b>%address%</b>',
+        LNG['CRYPTOCURRENCY_NEW_TRANSACTION'] = '<br><b color="red">Incoming balance for the amount: '
+
+        LNG['PAYMENT_WITHDRAW'] = 'Withdraw';
+        LNG['PAYMENT_WITHDRAW_MSG_1'] = 'coins on wallet'
+        LNG['PAYMENT_WITHDRAW_MSG_2'] = 'If you enter an incorrect wallet number your money will not be refunded'
+        LNG['PAYMENT_WITHDRAW_SUCCESS'] = 'Request for withdrawal created successful'
+        LNG['PAYMENT_DELETE_CARD'] = 'Delete card'
+
+        LNG['CRASH_PLACE_BET'] = 'PLACE BET';
+        LNG['CRASH_CASHOUT'] = 'CASHOUT';
+        LNG['CRASH_BET_PLACED'] = 'BET PLACED';
+        LNG['CRASH_BETTING'] = 'BETTING';
+        LNG['CRASH_CANCEL'] = '(click to cancel)';
+        
+        LNG['WITHDRAW_ALERT'] = 'If you decline this exchange, the coins deducted from your balance will not be returned. The exchange is valid for 30 minutes, if you do not have time to accept the exchange, it will be rejected and you will lose your coins!';
+        
+        LNG['LEVEL_PROMO_1'] = 'Your account is not eligible for promotional code activation. <br> But you can activate the promo code and get a bonus for your Steam level: <br><br> Level 10-15 - 200 coins <br> Level 16-20 - 300 coins <br> Level 21+ - 500 coins<br><br>';
+        LNG['LEVEL_PROMO_2'] = 'Your Steam level: %level%. Activate promocode %code% and get %coins% coins?';
+        
+        LNG['P2P_CONFIRM_D'] = 'After creating deposit offer, you will have <b class="text-primary">10 minutes</b> to search for the buyer, after the buyer finds, you will have to send the selected item (s) to the trade link. <br> <br> <b style = "color: red"> Attention! </b> You have <b class="text-primary"> 5 minutes </b> to send trade offer. Do not send an trade offer after this time, <b style="color:red">you risk losing your items.</b> <br> <br> <b style = "color: red"> Attention! Cancel</b> the sent exchange offer in STEAM if it was not accepted by the buyer <b style = "color: red"> 10 minutes after buyer was found, </b> otherwise <b style="color:red">you risk losing your items.</b> </b>. Our site will show you a notification when you need to cancel trade offer. <br> <br><b style="color: red">Attention!</b> Do not change the privacy settings of your STEAM profile / inventory during the exchange, <b style="color: red">otherwise you will not receive coins for the exchange!</b>';
+        LNG['P2P_CONFIRM_W'] = '<b style="color: red">Attention!</b> If you hide your Steam inventory/profile during the exchange, you <b style="color: red">risk losing coins!</b>';
+        
+        LNG['P2P_CONFIRM_CANCEL'] = '<b style="color: red"><i class="fa fa-exclamation-triangle" style="color: red;font-size: 1.5em;"></i> WARNING! <i class="fa fa-exclamation-triangle" style="color: red;font-size: 1.5em;"></i> By canceling this deposit, you confirm that you have canceled trade offer on Steam. After clicking the "OK" button, this deposit will be canceled, and coins for it will not be credited! <br><br> Do not do this if your exchange offer on steam has already been accepted by the buyer! You will lose your items and not get coins!</b>';
+        
+        LNG['P2P_CANCELED_DESC_SENDER'] = [];
+        LNG['P2P_CANCELED_DESC_SENDER']['2'] = '<h3 class="window_exchange_failed">You canceled the trade.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-1'] = '<h3 class="window_exchange_failed">Error creating offer.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-2'] = '<h3 class="window_exchange_failed">Trade canceled.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-3'] = '<h3 class="window_exchange_failed">Your api key is invalid. Trade canceled.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-4'] = '<h3 class="window_exchange_failed">The time to send the trade has expired. Offer canceled.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-5'] = '<h3 class="window_exchange_failed">The trade canceled on Steam.</h3>';
+        LNG['P2P_CANCELED_DESC_SENDER']['-6'] = "<h3 class='window_exchange_failed'>Trade canceled. You have created trade with wrong items.</h3>";
+        LNG['P2P_CANCELED_DESC_SENDER']['-7'] = "<h3 class='window_exchange_failed'>Your items were not sent to the buyer, but to another user on Steam. We canceled this trade. If you did not send items to another user, you may have been scammed, we recommend you change the password in Steam and revoke your api key.</h3>";
+        LNG['P2P_CANCELED_DESC_SENDER']['-8'] = "<h3 class='window_exchange_failed'>The trade canceled on Steam.</h3>";
+          
+        LNG['P2P_CANCELED_DESC_RECEIVER'] = [];
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-3'] = "<h3 class='window_exchange_failed'>The trade canceled on Steam.</h3> <p class='window_timer_article'>Сoins will be returned to your balance within 2 minutes.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-4'] = '<h3 class="window_exchange_failed">Trade canceled.</h3> <p class="window_timer_article">Сoins will be returned to your balance within 2 minutes.</p>';
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-5'] = "<h3 class='window_exchange_failed'>The trade canceled on Steam.</h3> <p class='window_timer_article'>Сoins will be returned to your balance within 2 minutes.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-6'] = "<h3 class='window_exchange_failed'>The trade canceled on Steam.</h3> <p class='window_timer_article'>Сoins will be returned to your balance within 2 minutes.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-7'] = "<h3 class='window_exchange_failed'>The trade canceled on Steam.</h3> <p class='window_timer_article'>Сoins will be returned to your balance within 2 minutes.</p>";
+        LNG['P2P_CANCELED_DESC_RECEIVER']['-8'] = "<h3 class='window_exchange_failed'>The trade canceled on Steam.</h3> <p class='window_timer_article'>Сoins will be returned to your balance within 2 minutes.</p>";
+        
+        LNG['P2P_SELLER_RATE'] = 'Seller rating. This seller has successfully completed %rate%% of trades. (%success% successful)';
+	    LNG['P2P_SELLER_RATE_0'] = 'Seller rating will be available when he makes more trades';
+	    LNG['JACKPOT_CASINO_CLOSE'] = 'Are you sure you want to close the notification? You can take a screenshot of your winnings and send them to our social media.';
+	    
+	    LNG['XRP_TAG'] = "Attention! You didn't use the TAG (MEMO)! Make sure you don't need a TEG for the receiving XRP. If you do not need to specify the tag, click OK, withdraw will be made without specifying the TAG."
+	    
+	    LNG['MM_SIGN'] = 'Sign transaction';
+	    LNG['MM_SIGN_2'] = 'Please sign transaction in your wallet';
+	    LNG['MM_DEP'] = 'Deposit ';
+	    LNG['MM_DEP_UID'] = ' for User ID ';
+	    LNG['MM_TX_SENT'] = 'Transacion sent. Deposit will be credited within 2 minutes.';
+	    LNG['MM_TX_SENDING'] = 'Sending a transaction.';
+	    LNG['MM_TX_CHECK'] = 'Check transaction.';
+	    LNG['MM_UID_CHANGE_WARN'] = 'ATTENTION! If you change the user ID, then the deposit will be credited to another user. Change user ID?';
+        LNG['P2P_ATTENTION'] = 'ATTENTION';
+        LNG['P2P_WARN'] = 'Select only the skins specified in this deposit. If you send a trade offer with the wrong items, you will lose skins and not receive coins. We can`t cancel this trade in Steam for you. <div style="display: flex;justify-content: center;margin-top: 25px;"><div><div class="default_checkbox"><label class="checkbox"><input type="checkbox" id="p2p_dont_show"><span class="checkbox_title">Dont show this message again</span></label></div></div></div>';
+        LNG['P2P_WARN_2'] = '<p style="margin-top:5px">— There are no bots on the site. All trades are made between users of the site</p><p style="margin-top:5px">— Do not accept incoming trade offers or you will lose skins and coins</p><p style="margin-top:5px">— After the buyer is found, you will receive the trade link. Do not send skins to anyone until this moment.</p><div style="display: flex;justify-content: center;margin-top: 25px;"><div><div class="default_checkbox"><label class="checkbox"><input type="checkbox" id="p2p_dont_show_2"><span class="checkbox_title">Dont show this message again</span></label></div></div></div>';
+        LNG['P2P_ATTENTION_PRICE'] = 'The seller set an high price for items. Check the price of items in Steam market before making a withdrawal.';
+        LNG['P2P_ATTENTION_PRICE_2'] = 'Check the price of items in Steam market before making a withdrawal.';
+        LNG['ERROR_RELOAD'] = 'Error. Reload the page';
+        
+        LNG['error_invalid_token'] = 'You provided wrong trade link.'
+        LNG['error_user_not_tradable'] = 'Trades not available on your Steam account.';
+        LNG['error_inventory_private'] = 'Your inventory privacy is set to "Private"';
+        
+        LNG['instant_withdraw_canceled'] = 'Withdraw canceled!';
+        LNG['instant_trade_accepted'] = 'Trade accepted!';
+        LNG['instant_trade_sent'] = 'Trade offer sent!';
+        LNG['instant_trade_sent_text'] = 'Please accept trade offer in Steam';
+        LNG['instant_waiting_trade'] = 'Withdraw request created';
+        LNG['instant_waiting_trade_text'] = 'Sending trade offer..';
+        
+        LNG['instant_open_trade'] = 'Open trade offer';
+        LNG['instant_confirm'] = 'Confirm';
+        LNG['instant_cancel'] = 'Cancel';
+        
+        LNG['insert_tradelink'] = 'Insert your tradelink';
+        LNG['insert_tradelink_find'] = 'Find here';
+        
+    }
+});
+
